@@ -2,7 +2,7 @@
 
 {% block title %}Lumina Host | Glass Gallery{% endblock %}
 
-{% block body_attr %}ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endblock %}
+{% block body_attr %}ondragover="event.preventDefault();" ondrop="event.preventDefault();"{% endblock %}
 
 {% block navbar_actions %}
 <!-- Search Bar -->
@@ -41,7 +41,7 @@
         </p>
     </div>
     
-    <!-- Mobile Search (Visible only on small screens) -->
+    <!-- Mobile Search -->
     <div class="md:hidden w-full">
         <div class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 transition-colors">
             <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
@@ -54,18 +54,17 @@
 <!-- ASSETS GRID -->
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6" id="assets-grid">
     {% for asset in assets %}
-    <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
+    {% set current_index = loop.index0 %}
+    <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out] pointer-events-auto"
          data-id="{{ asset.id }}"
-         onclick="handleAssetClick(this, {{ loop.index0 }})"> <!-- Note: Index logic needs update for Infinite Scroll -->
+         onclick="handleAssetClick(this, {{ current_index }})">
         
-        <!-- Selection Checkbox Overlay -->
         <div class="selection-overlay absolute top-3 right-3 z-20 hidden">
              <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
                 <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
              </div>
         </div>
 
-        <!-- Image -->
         <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
             <img src="{{ asset.url_thumbnail }}" 
                  alt="{{ asset.title }}" 
@@ -74,7 +73,6 @@
             <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
         </div>
         
-        <!-- Overlay Info -->
         <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
             <h3 class="text-white font-medium truncate text-lg tracking-wide">{{ asset.title }}</h3>
             <div class="flex justify-between items-center mt-3">
@@ -89,26 +87,38 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-500 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
+        <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 animate-float">
+            <i class="fa-regular fa-images text-4xl text-emerald-400/50"></i>
+        </div>
+        <h3 class="text-xl font-medium text-slate-300">No assets found</h3>
+        <p class="text-sm opacity-60 mt-2 max-w-sm text-center">Your secure gallery is empty. Upload your first image to get started.</p>
+        <div class="flex gap-4 mt-8">
+             <button onclick="document.getElementById('uploadInput').click()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/20">
+                Upload File
+            </button>
+        </div>
+    </div>
     {% endfor %}
 </div>
 
-<!-- Sentinel for Infinite Scroll -->
+<!-- Sentinel -->
 <div id="sentinel" class="h-20 w-full flex items-center justify-center mt-8 opacity-0 transition-opacity duration-300">
     <div class="w-8 h-8 border-4 border-white/10 border-t-emerald-400 rounded-full animate-spin"></div>
 </div>
 
 <!-- Lightbox Modal -->
 <div id="lightbox" class="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <!-- Close Button -->
     <button onclick="closeLightbox()" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-50">
         <i class="fa-solid fa-xmark text-lg"></i>
     </button>
 
-    <!-- Navigation Buttons -->
-    <button onclick="prevImage(event)" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
+    <button onclick="prevImage(event)" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white hidden md:flex items-center justify-center transition-all z-50 hover:scale-110">
         <i class="fa-solid fa-chevron-left text-xl"></i>
     </button>
-    <button onclick="nextImage(event)" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
+    <button onclick="nextImage(event)" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white hidden md:flex items-center justify-center transition-all z-50 hover:scale-110">
         <i class="fa-solid fa-chevron-right text-xl"></i>
     </button>
     
@@ -156,7 +166,6 @@
 <!-- Upload Queue Panel -->
 <div id="queue-container" class="fixed bottom-6 right-6 w-96 max-w-[90vw] z-50 pointer-events-none transition-all duration-300 translate-y-4 opacity-0">
     <div class="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
-        <!-- Header -->
         <div class="px-4 py-3 bg-white/5 border-b border-white/5 flex justify-between items-center pointer-events-auto">
             <h3 class="text-sm font-semibold text-white flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-emerald-400"></i> Upload Queue
@@ -165,19 +174,14 @@
                 Clear Done
             </button>
         </div>
-        <!-- Scrollable List -->
-        <div id="queue-list" class="max-h-64 overflow-y-auto p-2 flex flex-col gap-2 pointer-events-auto">
-            <!-- Items injected here -->
-        </div>
+        <div id="queue-list" class="max-h-64 overflow-y-auto p-2 flex flex-col gap-2 pointer-events-auto"></div>
     </div>
 </div>
 
-<!-- Hidden Form for Upload -->
 <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
     <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
 </form>
 
-<!-- Mobile FAB Upload -->
 <div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40 transition-transform duration-300" id="fab-container">
     <button onclick="document.getElementById('uploadInput').click()"
             class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20">
@@ -185,7 +189,6 @@
     </button>
 </div>
 
-<!-- Loading Overlay -->
 <div id="loader" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] hidden flex-col items-center justify-center transition-all duration-300">
     <div class="relative">
         <div class="w-16 h-16 border-4 border-slate-700 rounded-full"></div>
@@ -194,7 +197,6 @@
     <p class="text-emerald-400 font-medium tracking-[0.2em] mt-6 animate-pulse text-sm">PROCESSING...</p>
 </div>
 
-<!-- Drag Overlay -->
 <div id="dragOverlay" class="fixed inset-0 bg-emerald-500/10 backdrop-blur-sm z-[150] hidden flex flex-col items-center justify-center border-4 border-dashed border-emerald-500/50 m-4 rounded-3xl pointer-events-none">
     <i class="fa-solid fa-cloud-arrow-up text-6xl text-emerald-400 mb-4 animate-bounce"></i>
     <h2 class="text-3xl font-bold text-white">Drop to Upload</h2>
@@ -202,532 +204,24 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Config Injection -->
 <script>
-    const galleryGrid = document.getElementById('assets-grid');
-    const sentinel = document.getElementById('sentinel');
-    const form = document.getElementById('uploadForm');
-    const loader = document.getElementById('loader');
-    const lightbox = document.getElementById('lightbox');
-    const dragOverlay = document.getElementById('dragOverlay');
-    const queuePanel = document.getElementById('queue-panel');
-    
-    // State
-    let galleryData = [
-        {% for asset in assets %}
-        {
-            id: "{{ asset.id }}",
-            url: "{{ asset.url_full }}",
-            title: "{{ asset.title }}",
-            type: "{{ asset.mime_type }}",
-            date: "{{ asset.created_at }}"
-        },
-        {% endfor %}
-    ];
-    
-    let currentPage = 1;
-    let hasMore = {{ 'true' if has_more else 'false' }};
-    let isLoading = false;
-    let searchQuery = '';
-    let searchDebounceTimer;
-    let currentLightboxIndex = 0;
-    
-    let isSelectionMode = false;
-    let selectedIds = new Set();
-    const selectModeBtn = document.getElementById('selectModeBtn');
-    const bulkActions = document.getElementById('bulk-actions');
-    const selectedCountSpan = document.getElementById('selected-count');
-
-    // --- Infinite Scroll ---
-    const observer = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-            loadMore();
-        }
-    });
-    observer.observe(sentinel);
-
-    async function loadMore() {
-        isLoading = true;
-        sentinel.classList.remove('opacity-0');
-        
-        try {
-            const res = await fetch(`/api/assets?page=${currentPage + 1}&q=${encodeURIComponent(searchQuery)}`);
-            const data = await res.json();
-            
-            if (data.assets.length > 0) {
-                data.assets.forEach(asset => {
-                    const mappedAsset = {
-                        id: asset.id,
-                        url: asset.url_full,
-                        title: asset.title,
-                        type: asset.mime_type,
-                        date: asset.created_at
-                    };
-                    galleryData.push(mappedAsset);
-                    galleryGrid.insertAdjacentHTML('beforeend', createAssetCard(mappedAsset, galleryData.length - 1));
-                });
-                currentPage++;
-            }
-            
-            hasMore = data.has_more;
-            if (!hasMore) {
-                sentinel.style.display = 'none'; // Hide permanently if done
-            }
-        } catch (e) {
-            console.error("Load more failed", e);
-        } finally {
-            isLoading = false;
-            sentinel.classList.add('opacity-0');
-        }
-    }
-
-    // --- Search Logic ---
-    function handleSearch(query) {
-        clearTimeout(searchDebounceTimer);
-        searchQuery = query;
-        searchDebounceTimer = setTimeout(performSearch, 300);
-    }
-
-    async function performSearch() {
-        galleryGrid.innerHTML = ''; // Clear grid
-        galleryData = [];
-        currentPage = 0;
-        hasMore = true;
-        sentinel.style.display = 'flex';
-        
-        await loadMore(); // Fetch page 1 with new query
-    }
-
-    // --- HTML Generators ---
-    function createAssetCard(asset, index) {
-        // Safe mime check
-        const type = asset.type && asset.type.includes('/') ? asset.type.split('/')[1].toUpperCase() : 'IMG';
-        
-        return `
-        <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out]"
-             data-id="${asset.id}"
-             onclick="handleAssetClick(this, ${index})">
-            
-            <div class="selection-overlay absolute top-3 right-3 z-20 ${isSelectionMode ? '' : 'hidden'}">
-                 <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
-                    <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
-                 </div>
-            </div>
-
-            <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
-                <img src="${asset.url}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
-                <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
-            </div>
-            
-            <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
-                <h3 class="text-white font-medium truncate text-lg tracking-wide">${asset.title}</h3>
-                <div class="flex justify-between items-center mt-3">
-                    <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
-                        ${type}
-                    </span>
-                    <div class="flex gap-2">
-                        <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
-                            <i class="fa-solid fa-expand text-xs"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `;
-    }
-
-    // --- Click Handler (Dynamic) ---
-    // Note: Inline onclick="handleAssetClick(this, index)" works, but index must be correct.
-    // Since we append, indices match galleryData array positions perfectly.
-    // However, if we delete, indices shift? 
-    // Yes. Deleting items breaks static index references.
-    // Fix: Find index dynamically based on data-id when clicking.
-    
-    function handleAssetClick(card, index) { // index param ignored in favor of dynamic lookup
-        const id = card.getAttribute('data-id');
-        
-        if (isSelectionMode) {
-            toggleAssetSelection(card, id);
-        } else {
-            // Find true index in galleryData
-            const trueIndex = galleryData.findIndex(item => String(item.id) === String(id));
-            if (trueIndex !== -1) openLightbox(trueIndex);
-        }
-    }
-
-    function toggleAssetSelection(card, id) {
-        const checkbox = card.querySelector('.checkbox-circle');
-        const checkIcon = card.querySelector('.fa-check');
-        
-        if (selectedIds.has(id)) {
-            selectedIds.delete(id);
-            checkbox.classList.remove('bg-emerald-500', 'border-emerald-500');
-            checkbox.classList.add('bg-black/40', 'border-white/50');
-            checkIcon.classList.remove('opacity-100', 'scale-100');
-            card.classList.remove('ring-2', 'ring-emerald-500');
-        } else {
-            selectedIds.add(id);
-            checkbox.classList.add('bg-emerald-500', 'border-emerald-500');
-            checkbox.classList.remove('bg-black/40', 'border-white/50');
-            checkIcon.classList.add('opacity-100', 'scale-100');
-            card.classList.add('ring-2', 'ring-emerald-500');
-        }
-        updateSelectionUI();
-    }
-
-    // --- Selection Logic ---
-    function toggleSelectionMode() {
-        isSelectionMode = !isSelectionMode;
-        
-        if (isSelectionMode) {
-            selectModeBtn.classList.add('bg-indigo-500/20', 'border-indigo-500/50');
-            selectModeBtn.querySelector('span').innerText = 'Cancel';
-            document.querySelectorAll('.selection-overlay').forEach(el => el.classList.remove('hidden'));
-            document.getElementById('fab-container').classList.add('translate-y-32');
-        } else {
-            selectModeBtn.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
-            selectModeBtn.querySelector('span').innerText = 'Select';
-            document.querySelectorAll('.selection-overlay').forEach(el => el.classList.add('hidden'));
-            document.getElementById('fab-container').classList.remove('translate-y-32');
-            selectedIds.clear();
-            updateSelectionUI();
-            
-            // Reset visual selection state on all cards
-            document.querySelectorAll('.asset-card').forEach(card => {
-                const checkbox = card.querySelector('.checkbox-circle');
-                const checkIcon = card.querySelector('.fa-check');
-                checkbox.classList.remove('bg-emerald-500', 'border-emerald-500');
-                checkbox.classList.add('bg-black/40', 'border-white/50');
-                checkIcon.classList.remove('opacity-100', 'scale-100');
-                card.classList.remove('ring-2', 'ring-emerald-500');
-            });
-        }
-    }
-
-    function updateSelectionUI() {
-        selectedCountSpan.innerText = selectedIds.size;
-        if (selectedIds.size > 0) {
-            bulkActions.classList.remove('translate-y-32');
-        } else {
-            bulkActions.classList.add('translate-y-32');
-        }
-    }
-
-    // --- Bulk Download & Delete ---
-    async function downloadSelected() {
-        if (selectedIds.size === 0) return;
-        loader.classList.remove('hidden');
-        loader.classList.add('flex');
-        
-        const zip = new JSZip();
-        const promises = [];
-        const folder = zip.folder("lumina-assets");
-
-        selectedIds.forEach(id => {
-            // Find asset in current data set (galleryData might be filtered/partial)
-            // Use find logic consistent with other functions
-            const asset = galleryData.find(item => String(item.id) === String(id));
-            if (!asset) return;
-            
-            // Use PROXY to bypass CORS
-            const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.url)}`;
-            
-            const promise = fetch(proxyUrl)
-                .then(r => { if(r.ok) return r.blob(); throw new Error('Fetch failed'); })
-                .then(blob => folder.file(asset.title || `image-${id}.jpg`, blob))
-                .catch(e => console.error("Failed to download", asset.title, e));
-            
-            promises.push(promise);
-        });
-
-        try {
-            await Promise.all(promises);
-            const content = await zip.generateAsync({type:"blob"});
-            saveAs(content, "lumina-gallery.zip");
-            toggleSelectionMode();
-        } catch (e) { 
-            console.error(e);
-            alert("Download failed. Check console for details."); 
-        } finally { 
-            loader.classList.add('hidden'); 
-            loader.classList.remove('flex'); 
-        }
-    }
-
-    function confirmDelete() {
-        showModal({
-            title: 'Delete Assets?',
-            message: `Delete ${selectedIds.size} items?`,
-            color: 'rose',
-            icon: 'fa-trash-can',
-            onConfirm: performDelete
-        });
-    }
-
-    async function performDelete() {
-        loader.classList.remove('hidden');
-        loader.classList.add('flex');
-        try {
-            const res = await fetch('/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ ids: Array.from(selectedIds) })
-            });
-            if (res.ok) {
-                // Remove from DOM and galleryData
-                selectedIds.forEach(id => {
-                    const card = document.querySelector(`.asset-card[data-id="${id}"]`);
-                    if (card) card.remove();
-                    
-                    const idx = galleryData.findIndex(i => String(i.id) === String(id));
-                    if (idx > -1) galleryData.splice(idx, 1);
-                });
-                toggleSelectionMode();
-            } else { alert('Delete failed'); }
-        } catch(e) { alert('Error'); }
-        finally { loader.classList.add('hidden'); loader.classList.remove('flex'); }
-    }
-
-        // --- Upload Queue (Refined) ---
-        const queueContainer = document.getElementById('queue-container');
-        const queueList = document.getElementById('queue-list');
-    
-        class UploadQueue {
-            constructor() { this.queue = []; this.isProcessing = false; }
-            
-            add(files) {
-                this.show();
-                Array.from(files).forEach(file => {
-                    const id = Math.random().toString(36).substr(2, 9);
-                    const controller = new AbortController();
-                    const item = { id, file, status: 'pending', element: null, controller };
-                    this.queue.push(item);
-                    this.createUI(item);
-                });
-                this.process();
-            }
-    
-            show() {
-                queueContainer.classList.remove('translate-y-4', 'opacity-0');
-            }
-    
-            createUI(item) {
-                const el = document.createElement('div');
-                el.className = 'p-2 rounded-lg bg-white/5 flex items-center gap-3 border border-white/5 transition-all duration-300';
-                el.id = `queue-${item.id}`;
-                el.innerHTML = `
-                    <div class="w-8 h-8 rounded bg-white/10 flex items-center justify-center shrink-0"><i class="fa-regular fa-image text-slate-300 text-xs"></i></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-center mb-1">
-                            <p class="text-xs font-medium text-white truncate pr-2 max-w-[150px]">${item.file.name}</p>
-                            <span class="text-[10px] uppercase tracking-wider text-slate-400 status-text">Pending</span>
-                        </div>
-                        <div class="w-full bg-slate-700/50 rounded-full h-1 overflow-hidden">
-                            <div class="progress-bar bg-emerald-400 h-full w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <button onclick="uploader.cancel('${item.id}')" class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-                        <i class="fa-solid fa-xmark text-xs"></i>
-                    </button>
-                `;
-                queueList.appendChild(el);
-                queueList.scrollTop = queueList.scrollHeight;
-                item.element = el;
-            }
-    
-            cancel(id) {
-                const index = this.queue.findIndex(i => i.id === id);
-                if (index === -1) return;
-    
-                const item = this.queue[index];
-                
-                if (item.status === 'uploading') {
-                    item.controller.abort();
-                }
-    
-                this.queue.splice(index, 1);
-                
-                if(item.element) item.element.remove();
-    
-                if (item.status === 'uploading') {
-                    this.isProcessing = false;
-                    setTimeout(() => this.process(), 300);
-                }
-                
-                if (queueList.children.length === 0) {
-                    queueContainer.classList.add('translate-y-4', 'opacity-0');
-                }
-            }
-            
-            clearCompleted() {
-                const pending = this.queue.filter(i => i.status === 'pending' || i.status === 'uploading');
-                
-                this.queue.forEach(i => {
-                    if ((i.status === 'success' || i.status === 'error') && i.element) {
-                        i.element.remove();
-                    }
-                });
-                
-                this.queue = pending;
-                
-                if (this.queue.length === 0) {
-                    queueContainer.classList.add('translate-y-4', 'opacity-0');
-                }
-            }
-    
-            async process() {
-                if (this.isProcessing || this.queue.length === 0) return;
-                
-                const item = this.queue.find(i => i.status === 'pending');
-                if (!item) return;
-    
-                this.isProcessing = true;
-                item.status = 'uploading';
-                
-                await this.upload(item);
-    
-                this.isProcessing = false;
-                setTimeout(() => this.process(), 300);
-            }
-    
-            async upload(item) {
-                const formData = new FormData();
-                formData.append('file', item.file);
-                this.updateUI(item, 'uploading', 50);
-                
-                try {
-                    const res = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        signal: item.controller.signal 
-                    });
-                    
-                    const data = await res.json();
-                    if (res.ok) {
-                        this.updateUI(item, 'success', 100);
-                        if (data.assets) this.addToGallery(data.assets[0]);
-                        item.status = 'success';
-                    } else { throw new Error(data.error); }
-                } catch (e) {
-                    if (e.name === 'AbortError') {
-                        console.log('Upload cancelled');
-                    } else {
-                        this.updateUI(item, 'error', 0);
-                        item.status = 'error';
-                    }
-                }
-            }
-            
-            updateUI(item, status, progress) {
-                if (!item.element) return;
-                const bar = item.element.querySelector('.progress-bar');
-                const txt = item.element.querySelector('.status-text');
-                const btn = item.element.querySelector('button');
-                
-                if(status === 'uploading') { 
-                    txt.innerText = '...'; 
-                    bar.style.width = progress+'%'; 
-                }
-                if(status === 'success') { 
-                    txt.innerText = 'Done'; 
-                    bar.style.width = '100%'; 
-                    txt.className += ' text-emerald-400';
-                    if(btn) btn.remove();
-                }
-                if(status === 'error') { 
-                    txt.innerText = 'Err'; 
-                    bar.style.width = '100%'; 
-                    bar.className = 'progress-bar bg-rose-400 h-full'; 
-                }
-            }
-            addToGallery(asset) {
-                const mapped = { id: asset.wp_media_id || Math.random(), url: asset.url_full, title: asset.title, type: asset.mime_type, date: new Date().toISOString() };
-                galleryData.unshift(mapped);
-                galleryGrid.insertAdjacentHTML('afterbegin', createAssetCard(mapped, 0));
-            }
-        }    
-    const uploader = new UploadQueue();
-    function submitUpload() {
-        const input = document.getElementById('uploadInput');
-        if (input.files.length) { uploader.add(input.files); input.value = ''; }
-    }
-
-    // --- Drag & Drop ---
-    function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); }
-    document.addEventListener('dragenter', () => dragOverlay.classList.remove('hidden'));
-    document.addEventListener('dragleave', (e) => { if(e.relatedTarget === null) dragOverlay.classList.add('hidden'); });
-    document.addEventListener('dragover', (e) => e.preventDefault());
-    document.addEventListener('drop', (e) => {
-        e.preventDefault(); dragOverlay.classList.add('hidden');
-        if(e.dataTransfer.files.length) uploader.add(e.dataTransfer.files);
-    });
-
-    // --- Lightbox & Lightbox Actions ---
-    function updateLightboxContent() {
-        const asset = galleryData[currentLightboxIndex];
-        if (!asset) return;
-        const img = document.getElementById('lightbox-img');
-        img.style.opacity = '0.5';
-        setTimeout(() => {
-            img.src = asset.url;
-            document.getElementById('lightbox-title').innerText = asset.title;
-            document.getElementById('lightbox-type').innerText = asset.type.split('/')[1] || 'IMG';
-            document.getElementById('lightbox-date').innerText = new Date(asset.date).toLocaleDateString();
-            document.getElementById('lightbox-download').href = asset.url;
-            img.style.opacity = '1';
-        }, 150);
-    }
-    function openLightbox(index) {
-        currentLightboxIndex = index;
-        updateLightboxContent();
-        lightbox.classList.remove('hidden');
-        void lightbox.offsetWidth;
-        lightbox.classList.remove('opacity-0');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeLightbox() {
-        lightbox.classList.add('opacity-0');
-        setTimeout(() => { lightbox.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
-    }
-    function nextImage(e) { if(e) e.stopPropagation(); currentLightboxIndex = (currentLightboxIndex + 1) % galleryData.length; updateLightboxContent(); }
-    function prevImage(e) { if(e) e.stopPropagation(); currentLightboxIndex = (currentLightboxIndex - 1 + galleryData.length) % galleryData.length; updateLightboxContent(); }
-    
-    // --- Lightbox Actions (Save/Share) ---
-    async function saveLightboxImage() {
-        const asset = galleryData[currentLightboxIndex];
-        if(!asset) return;
-        
-        loader.classList.remove('hidden');
-        loader.classList.add('flex');
-
-        try {
-            // Use PROXY to bypass CORS
-            const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.url)}`;
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error('Network response was not ok');
-            
-            const blob = await res.blob();
-            saveAs(blob, asset.title || 'image.jpg');
-        } catch(e) { 
-            console.error(e);
-            alert('Save failed'); 
-        } finally {
-            loader.classList.add('hidden');
-            loader.classList.remove('flex');
-        }
-    }
-    function shareLightboxImage() {
-        const asset = galleryData[currentLightboxIndex];
-        if(!asset) return;
-        navigator.clipboard.writeText(asset.url).then(() => alert('Link Copied!')); // Use Toast ideally
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (!lightbox.classList.contains('hidden')) {
-            if (e.key === 'Escape') closeLightbox();
-            if (e.key === 'ArrowRight') nextImage();
-            if (e.key === 'ArrowLeft') prevImage();
-        }
-    });
+    window.LuminaConfig = {
+        initialAssets: [
+            {% for asset in assets %}
+            {
+                id: "{{ asset.id }}",
+                urlFull: "{{ asset.url_full }}",
+                urlThumb: "{{ asset.url_thumbnail }}",
+                title: "{{ asset.title }}",
+                type: "{{ asset.mime_type }}",
+                date: "{{ asset.created_at }}"
+            },
+            {% endfor %}
+        ],
+        hasMore: {{ 'true' if has_more else 'false' }}
+    };
 </script>
+<!-- Gallery Logic -->
+<script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
 {% endblock %}
