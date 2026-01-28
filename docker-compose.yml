@@ -2,7 +2,7 @@ services:
   web:
     build: .
     ports:
-      - "5000:5000"
+      - "5050:5050"
     volumes:
       - ./gallery.db:/app/gallery.db # Persist database
       - ./.env:/app/.env # Mount env file
@@ -16,7 +16,7 @@ services:
       icon: "https://cdn-icons-png.flaticon.com/512/8377/8377243.png"
       description: "Secure, decoupled image gallery with WordPress integration."
       category: "Media"
-      port_map: "5000"
+      port_map: "5050"
       scheme: "http"
       index: "/"
 
