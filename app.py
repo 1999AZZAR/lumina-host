@@ -98,14 +98,14 @@ def delete_files():
     wp_ids = database.delete_assets(ids)
     
     # 2. Delete from WordPress (Async-like loop)
-    deleted_count = 0
+    remote_deleted_count = 0
     for wp_id in wp_ids:
         if wordpress_api.delete_media(wp_id):
-            deleted_count += 1
+            remote_deleted_count += 1
         time.sleep(0.5) # Throttle to prevent 502/429 errors
             
     return jsonify({
-        'message': f'Deleted {len(ids)} local assets and {deleted_count} remote assets.',
+        'message': f'Deleted {len(ids)} local assets. Remote cleanup: {remote_deleted_count}/{len(wp_ids)} successful.',
         'deleted_ids': ids
     })
 

@@ -443,7 +443,7 @@
                  }, 3000);
             }
 
-            this.process();
+            setTimeout(() => this.process(), 300); // Reduced throttle
         }
 
         async upload(item) {

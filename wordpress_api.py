@@ -3,6 +3,7 @@ import requests
 import base64
 from datetime import datetime
 import random
+import time
 
 # Configuration
 WP_API_URL = os.getenv('WP_API_URL') # e.g., https://your-site.com/wp-json/wp/v2/media
@@ -55,6 +56,8 @@ def upload_media(file_storage):
         url_full = data.get('source_url')
         url_thumbnail = sizes.get('thumbnail', {}).get('source_url', url_full)
         url_medium = sizes.get('medium', {}).get('source_url', url_full)
+
+        time.sleep(0.3) # Reduced throttle
 
         return {
             'wp_media_id': data.get('id'),
