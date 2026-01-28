@@ -2,6 +2,10 @@
 
 A decoupled image gallery application that leverages Headless WordPress for robust media management while delivering a lightweight, custom Flask frontend.
 
+## Demo
+
+[Watch the Demo on YouTube](https://youtu.be/X6CKQiNb8yU)
+
 ## Features
 
 * Decoupled Architecture: Application logic (Flask) is separated from media storage (WordPress).
