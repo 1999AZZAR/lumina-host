@@ -4,7 +4,7 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 
 ## Demo
 
-[Watch the Demo on YouTube](https://youtu.be/X6CKQiNb8yU)
+[![Lumina Host Demo](https://img.youtube.com/vi/X6CKQiNb8yU/0.jpg)](https://youtu.be/X6CKQiNb8yU)
 
 ## Features
 
