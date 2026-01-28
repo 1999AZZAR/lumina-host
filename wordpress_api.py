@@ -47,7 +47,7 @@ def upload_media(file_storage):
             WP_API_URL,
             headers=headers,
             data=file_content,
-            timeout=30 # Prevent hanging indefinitely
+            timeout=90 # Increased to 90s to prevent timeouts
         )
         
         # Check for errors and print response body for debugging
