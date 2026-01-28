@@ -412,7 +412,7 @@
         }
     }
 
-    // --- Bulk Download & Delete (Same as before but refined) ---
+    // --- Bulk Download & Delete ---
     async function downloadSelected() {
         if (selectedIds.size === 0) return;
         loader.classList.remove('hidden');
@@ -423,13 +423,19 @@
         const folder = zip.folder("lumina-assets");
 
         selectedIds.forEach(id => {
+            // Find asset in current data set (galleryData might be filtered/partial)
+            // Use find logic consistent with other functions
             const asset = galleryData.find(item => String(item.id) === String(id));
             if (!asset) return;
             
-            const promise = fetch(asset.url)
-                .then(r => { if(r.ok) return r.blob(); throw new Error('Fail'); })
+            // Use PROXY to bypass CORS
+            const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.url)}`;
+            
+            const promise = fetch(proxyUrl)
+                .then(r => { if(r.ok) return r.blob(); throw new Error('Fetch failed'); })
                 .then(blob => folder.file(asset.title || `image-${id}.jpg`, blob))
-                .catch(e => console.error(e));
+                .catch(e => console.error("Failed to download", asset.title, e));
+            
             promises.push(promise);
         });
 
@@ -438,8 +444,13 @@
             const content = await zip.generateAsync({type:"blob"});
             saveAs(content, "lumina-gallery.zip");
             toggleSelectionMode();
-        } catch (e) { alert("Download failed"); }
-        finally { loader.classList.add('hidden'); loader.classList.remove('flex'); }
+        } catch (e) { 
+            console.error(e);
+            alert("Download failed. Check console for details."); 
+        } finally { 
+            loader.classList.add('hidden'); 
+            loader.classList.remove('flex'); 
+        }
     }
 
     function confirmDelete() {
@@ -685,11 +696,25 @@
     async function saveLightboxImage() {
         const asset = galleryData[currentLightboxIndex];
         if(!asset) return;
+        
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+
         try {
-            const res = await fetch(asset.url);
+            // Use PROXY to bypass CORS
+            const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.url)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error('Network response was not ok');
+            
             const blob = await res.blob();
-            saveAs(blob, asset.title);
-        } catch(e) { alert('Save failed'); }
+            saveAs(blob, asset.title || 'image.jpg');
+        } catch(e) { 
+            console.error(e);
+            alert('Save failed'); 
+        } finally {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+        }
     }
     function shareLightboxImage() {
         const asset = galleryData[currentLightboxIndex];

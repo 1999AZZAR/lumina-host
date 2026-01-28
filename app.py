@@ -1,6 +1,7 @@
 import os
 import time
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+import requests
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
@@ -41,6 +42,17 @@ def get_assets_api():
     
     result = database.get_assets(page=page, per_page=20, search_query=search_query)
     return jsonify(result)
+
+@app.route('/proxy_download')
+def proxy_download():
+    """Proxy image download to bypass CORS."""
+    url = request.args.get('url')
+    if not url:
+        return "Missing URL", 400
+        
+    req = requests.get(url, stream=True)
+    return Response(stream_with_context(req.iter_content(chunk_size=1024)), 
+                    content_type=req.headers['content-type'])
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
