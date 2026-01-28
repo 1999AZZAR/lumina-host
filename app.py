@@ -1,4 +1,5 @@
 import os
+import time
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -83,6 +84,30 @@ def upload_file():
         flash('Upload failed. Check server logs.')
             
     return redirect(url_for('index'))
+
+@app.route('/delete', methods=['POST'])
+def delete_files():
+    """Bulk delete assets."""
+    data = request.get_json()
+    ids = data.get('ids', [])
+    
+    if not ids:
+        return jsonify({'error': 'No IDs provided'}), 400
+
+    # 1. Delete from Local DB and get WP IDs
+    wp_ids = database.delete_assets(ids)
+    
+    # 2. Delete from WordPress (Async-like loop)
+    deleted_count = 0
+    for wp_id in wp_ids:
+        if wordpress_api.delete_media(wp_id):
+            deleted_count += 1
+        time.sleep(0.5) # Throttle to prevent 502/429 errors
+            
+    return jsonify({
+        'message': f'Deleted {len(ids)} local assets and {deleted_count} remote assets.',
+        'deleted_ids': ids
+    })
 
 if __name__ == '__main__':
     # Initialize DB on start

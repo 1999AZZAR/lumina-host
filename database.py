@@ -116,3 +116,36 @@ def get_all_assets():
             print(f"⚠️  Redis write error: {e}")
             
     return assets
+
+def delete_assets(asset_ids):
+    """
+    Deletes assets from the local database by ID.
+    Args:
+        asset_ids (list): List of local DB IDs to delete.
+    Returns:
+        list: List of WP Media IDs associated with the deleted assets (for remote deletion).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Placeholders for IN clause
+    placeholders = ','.join('?' * len(asset_ids))
+    
+    # Get WP IDs before deleting
+    cursor.execute(f'SELECT wp_media_id FROM gallery_assets WHERE id IN ({placeholders})', asset_ids)
+    wp_ids = [row['wp_media_id'] for row in cursor.fetchall()]
+    
+    try:
+        cursor.execute(f'DELETE FROM gallery_assets WHERE id IN ({placeholders})', asset_ids)
+        conn.commit()
+        
+        # Invalidate Cache
+        if redis_client:
+            redis_client.delete('gallery:assets')
+            
+    except Exception as e:
+        print(f"❌ Database Error during delete: {e}")
+    finally:
+        conn.close()
+        
+    return wp_ids

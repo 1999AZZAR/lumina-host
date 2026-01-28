@@ -5,6 +5,13 @@
 {% block body_attr %}ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endblock %}
 
 {% block navbar_actions %}
+<!-- Selection Mode Toggle -->
+<button id="selectModeBtn" onclick="toggleSelectionMode()" 
+        class="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-indigo-400/30">
+    <i class="fa-regular fa-square-check text-indigo-400 group-hover:scale-110 transition-transform"></i>
+    <span id="selectBtnText">Select</span>
+</button>
+
 <!-- Upload File -->
 <button onclick="document.getElementById('uploadInput').click()" 
         class="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-emerald-400/30">
@@ -37,11 +44,21 @@
 </header>
 
 <!-- ASSETS GRID -->
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="assets-grid">
     {% for asset in assets %}
     {% set current_index = loop.index0 %}
-    <div class="group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
-         onclick="openLightbox({{ current_index }})">
+    <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
+         data-id="{{ asset.id }}"
+         data-index="{{ current_index }}"
+         onclick="handleAssetClick(this, {{ current_index }})">
+        
+        <!-- Selection Checkbox Overlay -->
+        <div class="selection-overlay absolute top-3 right-3 z-20 hidden">
+             <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
+                <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
+             </div>
+        </div>
+
         <!-- Image -->
         <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
             <img src="{{ asset.url_thumbnail }}" 
@@ -52,7 +69,7 @@
         </div>
         
         <!-- Overlay Info -->
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+        <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
             <h3 class="text-white font-medium truncate text-lg tracking-wide">{{ asset.title }}</h3>
             <div class="flex justify-between items-center mt-3">
                 <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
@@ -101,17 +118,46 @@
     <div class="relative max-w-7xl w-full max-h-[90vh] flex flex-col items-center">
         <img id="lightbox-img" src="" alt="Full View" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl shadow-black/50 transition-opacity duration-300">
         
-        <div class="mt-6 flex flex-col items-center gap-1">
-            <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
-            <div class="flex items-center gap-3 text-sm text-slate-400">
-                <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
-                <span id="lightbox-date"></span>
-            </div>
-            <a id="lightbox-download" href="#" target="_blank" class="mt-4 px-6 py-2 bg-white/10 hover:bg-emerald-500 text-white rounded-full transition-all text-sm font-medium border border-white/10 hover:border-transparent">
-                <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Open Original
-            </a>
-        </div>
-    </div>
+                    <div class="mt-6 flex flex-col items-center gap-1">
+                        <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
+                        <div class="flex items-center gap-3 text-sm text-slate-400">
+                            <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
+                            <span id="lightbox-date"></span>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="saveLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
+                                <i class="fa-solid fa-download text-sm group-hover:scale-110 transition-transform"></i>
+                            </button>
+                            <button onclick="shareLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
+                                <i class="fa-solid fa-share-nodes text-sm group-hover:scale-110 transition-transform"></i>
+                            </button>
+                            <a id="lightbox-download" href="#" target="_blank" class="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all border border-white/10 group">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-sm group-hover:scale-110 transition-transform"></i>
+                            </a>
+                        </div>
+                    </div>    </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+<div id="bulk-actions" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-slate-800/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-white/10 flex items-center gap-4 transition-all duration-300 translate-y-32">
+    <span class="text-white font-medium text-sm"><span id="selected-count">0</span> Selected</span>
+    <div class="h-4 w-px bg-white/20"></div>
+    
+    <button onclick="downloadSelected()" class="text-emerald-400 hover:text-emerald-300 font-medium text-sm flex items-center gap-2 transition-colors">
+        <i class="fa-solid fa-download"></i> Download
+    </button>
+    
+    <div class="h-4 w-px bg-white/20"></div>
+
+    <button onclick="confirmDelete()" class="text-rose-400 hover:text-rose-300 font-medium text-sm flex items-center gap-2 transition-colors">
+        <i class="fa-regular fa-trash-can"></i> Delete
+    </button>
+</div>
+
+<!-- Upload Queue Panel -->
+<div id="queue-panel" class="fixed bottom-6 right-6 w-96 max-w-[90vw] z-50 flex flex-col gap-3 pointer-events-none">
+    <!-- Items will be injected here via JS -->
 </div>
 
 <!-- Hidden Form for Upload -->
@@ -121,7 +167,7 @@
 </form>
 
 <!-- Mobile FAB Upload -->
-<div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40">
+<div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40 transition-transform duration-300" id="fab-container">
     <button onclick="document.getElementById('uploadInput').click()"
             class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20">
         <i class="fa-solid fa-plus"></i>
@@ -134,8 +180,7 @@
         <div class="w-16 h-16 border-4 border-slate-700 rounded-full"></div>
         <div class="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-400 rounded-full border-t-transparent animate-spin"></div>
     </div>
-    <p class="text-emerald-400 font-medium tracking-[0.2em] mt-6 animate-pulse text-sm">UPLOADING ASSETS...</p>
-    <p class="text-slate-500 text-xs mt-2">This might take a moment.</p>
+    <p class="text-emerald-400 font-medium tracking-[0.2em] mt-6 animate-pulse text-sm">PROCESSING...</p>
 </div>
 
 <!-- Drag Overlay -->
@@ -151,9 +196,18 @@
     const loader = document.getElementById('loader');
     const lightbox = document.getElementById('lightbox');
     const dragOverlay = document.getElementById('dragOverlay');
+    const queuePanel = document.getElementById('queue-panel');
+    const galleryGrid = document.querySelector('.grid');
+    
+    // Selection State
+    let isSelectionMode = false;
+    let selectedIds = new Set();
+    const selectModeBtn = document.getElementById('selectModeBtn');
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCountSpan = document.getElementById('selected-count');
 
     // Serialize assets for JS access
-    const galleryData = [
+    let galleryData = [
         {% for asset in assets %}
         {
             url: "{{ asset.url_full }}",
@@ -166,10 +220,357 @@
     
     let currentLightboxIndex = 0;
 
-    function submitUpload() {
+    // --- Selection Logic ---
+    function toggleSelectionMode() {
+        isSelectionMode = !isSelectionMode;
+        
+        // Update Button UI
+        if (isSelectionMode) {
+            selectModeBtn.classList.add('bg-indigo-500/20', 'border-indigo-500/50');
+            selectModeBtn.querySelector('span').innerText = 'Cancel';
+            document.querySelectorAll('.selection-overlay').forEach(el => el.classList.remove('hidden'));
+            document.getElementById('fab-container').classList.add('translate-y-32'); // Hide FAB
+        } else {
+            selectModeBtn.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
+            selectModeBtn.querySelector('span').innerText = 'Select';
+            document.querySelectorAll('.selection-overlay').forEach(el => el.classList.add('hidden'));
+            document.getElementById('fab-container').classList.remove('translate-y-32'); // Show FAB
+            
+            // Clear selections
+            selectedIds.clear();
+            updateSelectionUI();
+        }
+    }
+
+    function handleAssetClick(card, index) {
+        if (isSelectionMode) {
+            const id = card.getAttribute('data-id');
+            const checkbox = card.querySelector('.checkbox-circle');
+            const checkIcon = card.querySelector('.fa-check');
+            
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
+                // Unchecked styles
+                checkbox.classList.remove('bg-emerald-500', 'border-emerald-500');
+                checkbox.classList.add('bg-black/40', 'border-white/50');
+                checkIcon.classList.remove('opacity-100', 'scale-100');
+                card.classList.remove('ring-2', 'ring-emerald-500');
+            } else {
+                selectedIds.add(id);
+                // Checked styles
+                checkbox.classList.add('bg-emerald-500', 'border-emerald-500');
+                checkbox.classList.remove('bg-black/40', 'border-white/50');
+                checkIcon.classList.add('opacity-100', 'scale-100');
+                card.classList.add('ring-2', 'ring-emerald-500');
+            }
+            updateSelectionUI();
+        } else {
+            openLightbox(index);
+        }
+    }
+
+    function updateSelectionUI() {
+        selectedCountSpan.innerText = selectedIds.size;
+        if (selectedIds.size > 0) {
+            bulkActions.classList.remove('translate-y-32');
+        } else {
+            bulkActions.classList.add('translate-y-32');
+        }
+    }
+
+    // --- Bulk Download ---
+    async function downloadSelected() {
+        if (selectedIds.size === 0) return;
+
         loader.classList.remove('hidden');
         loader.classList.add('flex');
-        form.submit();
+        
+        const zip = new JSZip();
+        const promises = [];
+        const folder = zip.folder("lumina-assets");
+
+        selectedIds.forEach(id => {
+            // Find asset data
+            const card = document.querySelector(`.asset-card[data-id="${id}"]`);
+            if (!card) return;
+            const index = card.getAttribute('data-index');
+            const asset = galleryData[index];
+            
+            // Fetch blob
+            const promise = fetch(asset.url)
+                .then(response => {
+                    if (response.ok) return response.blob();
+                    throw new Error('Network response was not ok');
+                })
+                .then(blob => {
+                    folder.file(asset.title || `image-${id}.jpg`, blob);
+                })
+                .catch(err => console.error("Failed to fetch image", err));
+            
+            promises.push(promise);
+        });
+
+        try {
+            await Promise.all(promises);
+            const content = await zip.generateAsync({type:"blob"});
+            saveAs(content, "lumina-gallery.zip");
+            
+            // Exit selection mode
+            toggleSelectionMode();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to generate zip");
+        } finally {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+        }
+    }
+
+    // --- Bulk Delete ---
+    function confirmDelete() {
+        showModal({
+            title: 'Delete Assets?',
+            message: `Are you sure you want to delete ${selectedIds.size} items? This action cannot be undone.`,
+            color: 'rose',
+            icon: 'fa-trash-can',
+            onConfirm: performDelete
+        });
+    }
+
+    async function performDelete() {
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+
+        try {
+            const response = await fetch('/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: Array.from(selectedIds) })
+            });
+
+            if (response.ok) {
+                // Remove deleted items from DOM
+                selectedIds.forEach(id => {
+                    const card = document.querySelector(`.asset-card[data-id="${id}"]`);
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                });
+                
+                // Exit mode
+                toggleSelectionMode();
+                
+                // Show Empty State if grid is empty (delayed check)
+                setTimeout(() => {
+                    if (galleryGrid.querySelectorAll('.asset-card').length === 0) {
+                        location.reload(); 
+                    }
+                }, 400);
+                
+            } else {
+                alert('Failed to delete some items.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('An error occurred.');
+        } finally {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+        }
+    }
+
+
+    // --- QUEUE MANAGER ---
+    class UploadQueue {
+        constructor() {
+            this.queue = [];
+            this.isProcessing = false;
+        }
+
+        add(files) {
+            Array.from(files).forEach(file => {
+                const id = Math.random().toString(36).substr(2, 9);
+                const item = { id, file, status: 'pending', element: null };
+                this.queue.push(item);
+                this.createUI(item);
+            });
+            this.process();
+        }
+
+        createUI(item) {
+            const el = document.createElement('div');
+            el.className = 'glass-panel p-3 rounded-xl flex items-center gap-3 shadow-lg transform transition-all duration-300 translate-y-4 opacity-0 pointer-events-auto';
+            el.id = `queue-${item.id}`;
+            el.innerHTML = `
+                <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <i class="fa-regular fa-image text-slate-300"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-xs font-medium text-white truncate pr-2">${item.file.name}</p>
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 status-text">Pending</span>
+                    </div>
+                    <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+                        <div class="progress-bar bg-emerald-400 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+            `;
+            queuePanel.appendChild(el);
+            requestAnimationFrame(() => {
+                el.classList.remove('translate-y-4', 'opacity-0');
+            });
+            item.element = el;
+        }
+
+        async process() {
+            if (this.isProcessing || this.queue.length === 0) return;
+            this.isProcessing = true;
+
+            const item = this.queue[0];
+            await this.upload(item);
+
+            this.queue.shift();
+            this.isProcessing = false;
+            
+            if (item.status === 'success') {
+                 setTimeout(() => {
+                    item.element.classList.add('opacity-0', 'translate-x-full');
+                    setTimeout(() => item.element.remove(), 500);
+                 }, 3000);
+            }
+
+            this.process();
+        }
+
+        async upload(item) {
+            const formData = new FormData();
+            formData.append('file', item.file);
+            
+            this.updateUI(item, 'uploading', 50);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.updateUI(item, 'success', 100);
+                    if (data.assets && data.assets.length > 0) {
+                        this.addToGallery(data.assets[0]);
+                    }
+                    item.status = 'success';
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error(error);
+                this.updateUI(item, 'error', 0, error.message);
+                item.status = 'error';
+            }
+        }
+
+        updateUI(item, status, progress, msg = '') {
+            const el = item.element;
+            const bar = el.querySelector('.progress-bar');
+            const txt = el.querySelector('.status-text');
+            const icon = el.querySelector('i');
+
+            if (status === 'uploading') {
+                txt.innerText = 'Uploading...';
+                txt.className = 'text-[10px] uppercase tracking-wider text-indigo-300 status-text animate-pulse';
+                bar.style.width = `${progress}%`;
+                bar.className = 'progress-bar bg-indigo-400 h-full transition-all duration-300';
+            } else if (status === 'success') {
+                txt.innerText = 'Complete';
+                txt.className = 'text-[10px] uppercase tracking-wider text-emerald-400 status-text';
+                bar.style.width = '100%';
+                bar.className = 'progress-bar bg-emerald-400 h-full transition-all duration-300';
+                icon.className = 'fa-solid fa-check text-emerald-400';
+            } else if (status === 'error') {
+                txt.innerText = 'Failed';
+                txt.className = 'text-[10px] uppercase tracking-wider text-rose-400 status-text';
+                bar.style.width = '100%';
+                bar.className = 'progress-bar bg-rose-400 h-full transition-all duration-300';
+                icon.className = 'fa-solid fa-triangle-exclamation text-rose-400';
+            }
+        }
+
+        addToGallery(asset) {
+            galleryData.unshift({
+                url: asset.url_full,
+                title: asset.title,
+                type: asset.mime_type,
+                date: new Date().toISOString()
+            });
+
+            const card = document.createElement('div');
+            // Add asset-card class and data attributes for selection logic
+            // Note: ID handling for new items needs care if we want to delete them immediately
+            // But for now, we'll reload if they want to delete newly added ones or use returned ID
+            // Ideally backend returns ID.
+            
+            // Wait, backend response currently sends full asset data including 'wp_media_id' but we need local DB 'id'.
+            // Let's assume database.add_asset returns the FULL object including the new ID? 
+            // In app.py: uploaded_assets.append(asset_data). 
+            // database.add_asset DOES NOT currently update asset_data with the new local ID. 
+            // It inserts it. We should fix this if we want to delete newly added items without refresh.
+            // For now, I will skip adding data-id to new items to avoid bugs, user must refresh to delete new items.
+            
+            card.className = "asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out]";
+            card.onclick = () => openLightbox(0); 
+            
+            card.innerHTML = `
+                <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
+                    <img src="${asset.url_thumbnail}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
+                    <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+                    <h3 class="text-white font-medium truncate text-lg tracking-wide">${asset.title}</h3>
+                    <div class="flex justify-between items-center mt-3">
+                        <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
+                            ${asset.mime_type.split('/')[1].toUpperCase()}
+                        </span>
+                        <div class="flex gap-2">
+                             <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
+                                <i class="fa-solid fa-expand text-xs"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const emptyState = document.querySelector('.col-span-full');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            galleryGrid.insertBefore(card, galleryGrid.firstChild);
+            
+            const items = galleryGrid.children;
+            Array.from(items).forEach((item, index) => {
+                if(!item.classList.contains('asset-card')) return;
+                // Preserve existing onclick logic for lightbox
+                item.onclick = () => handleAssetClick(item, index);
+            });
+        }
+    }
+
+    const uploader = new UploadQueue();
+
+    // Hook up Inputs
+    function submitUpload() {
+        const input = document.getElementById('uploadInput');
+        if (input.files.length > 0) {
+            uploader.add(input.files);
+            input.value = ''; 
+        }
     }
 
     // --- Drag & Drop Handling ---
@@ -195,7 +596,7 @@
     });
 
     document.addEventListener('dragover', (e) => {
-         e.preventDefault(); // Necessary to allow dropping
+         e.preventDefault(); 
     });
 
     document.addEventListener('drop', (e) => {
@@ -206,8 +607,7 @@
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            document.getElementById('uploadInput').files = files;
-            submitUpload();
+            uploader.add(files);
         }
     });
 
@@ -218,7 +618,6 @@
 
         const img = document.getElementById('lightbox-img');
         
-        // Fade out slightly before changing
         img.style.opacity = '0.5';
         
         setTimeout(() => {
@@ -236,10 +635,9 @@
         updateLightboxContent();
         
         lightbox.classList.remove('hidden');
-        // Trigger reflow
         void lightbox.offsetWidth;
         lightbox.classList.remove('opacity-0');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling
+        document.body.style.overflow = 'hidden'; 
     }
 
     function closeLightbox() {
@@ -248,6 +646,44 @@
             lightbox.classList.add('hidden');
             document.body.style.overflow = '';
         }, 300);
+    }
+
+    async function saveLightboxImage() {
+        const asset = galleryData[currentLightboxIndex];
+        if (!asset) return;
+
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+
+        try {
+            const response = await fetch(asset.url);
+            const blob = await response.blob();
+            saveAs(blob, asset.title || 'image.jpg');
+        } catch (e) {
+            console.error(e);
+            alert("Failed to save image");
+        } finally {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+        }
+    }
+
+    function shareLightboxImage() {
+        const asset = galleryData[currentLightboxIndex];
+        if (!asset) return;
+
+        navigator.clipboard.writeText(asset.url).then(() => {
+            // Create a temporary "Toast" notification
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[250] glass-panel px-6 py-2 rounded-full text-emerald-400 font-medium text-sm border-emerald-500/30 animate-bounce';
+            toast.innerHTML = '<i class="fa-solid fa-link mr-2"></i> Link Copied!';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 2000);
+        });
     }
     
     function nextImage(e) {
@@ -262,7 +698,6 @@
         updateLightboxContent();
     }
 
-    // Keyboard Navigation
     document.addEventListener('keydown', (e) => {
         if (lightbox.classList.contains('hidden')) return;
 
@@ -271,7 +706,6 @@
         if (e.key === 'ArrowLeft') prevImage();
     });
 
-    // Close on clicking outside image
     lightbox.addEventListener('click', (e) => {
         if (e.target === lightbox) {
             closeLightbox();

@@ -48,6 +48,8 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 
    * Mock Mode: Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
    * Live Mode: Fill in your WordPress credentials to enable real CDN hosting.
+   
+   **[Read the WordPress Setup Guide](WORDPRESS_SETUP.md)** for detailed instructions on getting your API URL and Application Password.
 
    ```env
    WP_API_URL=https://your-site.com/wp-json/wp/v2/media
