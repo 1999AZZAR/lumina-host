@@ -1,469 +1,281 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lumina Host | Glass Gallery</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Particles.js -->
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+{% extends "base.html" %}
 
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        #particles-js {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -5;
-            pointer-events: none;
-        }
-        /* Hide scrollbar for clean look */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+{% block title %}Lumina Host | Glass Gallery{% endblock %}
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-    </style>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { 800: '#1e293b', 900: '#0f172a' },
-                        emerald: { 400: '#34d399', 500: '#10b981' },
-                        indigo: { 400: '#818cf8', 500: '#6366f1' }
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen relative overflow-x-hidden selection:bg-emerald-400 selection:text-slate-900" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+{% block body_attr %}ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endblock %}
 
-    <!-- Particles Background -->
-    <div id="particles-js"></div>
+{% block navbar_actions %}
+<!-- Upload File -->
+<button onclick="document.getElementById('uploadInput').click()" 
+        class="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-emerald-400/30">
+    <i class="fa-solid fa-cloud-arrow-up text-emerald-400 group-hover:scale-110 transition-transform"></i>
+    <span>Upload</span>
+</button>
+{% endblock %}
 
-    <!-- Ambient Background Blobs -->
-    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style="animation-duration: 4s;"></div>
+{% block content %}
+<!-- Header -->
+<header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div class="text-center md:text-left">
+        <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 mb-2 tracking-tight">
+            Digital Assets
+        </h1>
+        <p class="text-slate-400 text-lg font-light flex items-center gap-2 justify-center md:justify-start">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Securely hosted on WordPress CDN.
+        </p>
     </div>
-
-    <!-- Glassmorphic Navbar -->
-    <nav class="fixed top-0 w-full z-50 glass-panel border-b-0 shadow-lg bg-slate-900/40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <i class="fa-solid fa-layer-group text-white text-sm"></i>
-                    </div>
-                    <span class="font-semibold text-lg tracking-wide text-white/90">Lumina Host</span>
-                </a>
-                
-                <div class="flex items-center gap-3">
-                    <!-- Upload Folder -->
-                    <button onclick="document.getElementById('uploadFolderInput').click()" 
-                            class="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-indigo-400/30">
-                        <i class="fa-solid fa-folder-plus text-indigo-400 group-hover:scale-110 transition-transform"></i>
-                        <span>New Album</span>
-                    </button>
-                    <!-- Upload File -->
-                    <button onclick="document.getElementById('uploadInput').click()" 
-                            class="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-emerald-400/30">
-                        <i class="fa-solid fa-cloud-arrow-up text-emerald-400 group-hover:scale-110 transition-transform"></i>
-                        <span>Upload</span>
-                    </button>
-                </div>
-            </div>
+    
+    <!-- Drag & Drop Zone Hint -->
+    <div class="hidden md:flex items-center gap-4 px-6 py-3 rounded-xl border border-dashed border-white/10 bg-white/5 text-slate-400 text-sm">
+        <i class="fa-solid fa-file-arrow-up text-xl text-slate-500"></i>
+        <div class="flex flex-col">
+            <span class="font-medium text-slate-300">Drag & Drop anywhere</span>
+            <span class="text-xs opacity-60">to upload instantly</span>
         </div>
-    </nav>
+    </div>
+</header>
 
-    <!-- Main Content -->
-    <main class="pt-28 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-[calc(100vh-4rem)]">
+<!-- ASSETS GRID -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    {% for asset in assets %}
+    {% set current_index = loop.index0 %}
+    <div class="group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
+         onclick="openLightbox({{ current_index }})">
+        <!-- Image -->
+        <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
+            <img src="{{ asset.url_thumbnail }}" 
+                 alt="{{ asset.title }}" 
+                 loading="lazy"
+                 class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
+            <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
+        </div>
         
-        <!-- Header -->
-        <header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div class="text-center md:text-left">
-                {% if current_album %}
-                    <a href="/" class="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-2 transition-colors">
-                        <i class="fa-solid fa-arrow-left"></i> Back to Gallery
-                    </a>
-                    <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 mb-2 tracking-tight">
-                        {{ current_album.title }}
-                    </h1>
-                {% else %}
-                    <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 mb-2 tracking-tight">
-                        Digital Assets
-                    </h1>
-                    <p class="text-slate-400 text-lg font-light flex items-center gap-2 justify-center md:justify-start">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Securely hosted on WordPress CDN.
-                    </p>
-                {% endif %}
-            </div>
-            
-            <!-- Drag & Drop Zone Hint -->
-            <div class="hidden md:flex items-center gap-4 px-6 py-3 rounded-xl border border-dashed border-white/10 bg-white/5 text-slate-400 text-sm">
-                <i class="fa-solid fa-file-arrow-up text-xl text-slate-500"></i>
-                <div class="flex flex-col">
-                    <span class="font-medium text-slate-300">Drag & Drop anywhere</span>
-                    <span class="text-xs opacity-60">to upload instantly</span>
+        <!-- Overlay Info -->
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+            <h3 class="text-white font-medium truncate text-lg tracking-wide">{{ asset.title }}</h3>
+            <div class="flex justify-between items-center mt-3">
+                <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
+                    {{ asset.mime_type.split('/')[-1] | upper }}
+                </span>
+                <div class="flex gap-2">
+                    <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </span>
                 </div>
-            </div>
-        </header>
-
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div id="flash-container" class="mb-8 flex flex-col gap-2 relative z-40">
-                    {% for message in messages %}
-                        <div class="flash-message glass-panel px-4 py-3 rounded-lg border-l-4 border-emerald-400 text-emerald-100 flex items-center gap-3 shadow-lg animate-[fadeIn_0.5s_ease-out] cursor-pointer transition-opacity duration-500"
-                             onclick="dismissFlash(this)">
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <!-- ALBUMS SECTION (Only on Home) -->
-        {% if albums and not current_album %}
-        <div class="mb-12">
-            <h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center gap-2">
-                <i class="fa-regular fa-folder-open"></i> Albums
-            </h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {% for album in albums %}
-                <a href="/album/{{ album.id }}" class="group relative glass-panel rounded-xl p-4 flex flex-col items-center justify-center gap-3 hover:bg-white/10 transition-all hover:scale-[1.02] cursor-pointer">
-                    <!-- Preview Image or Generic Icon -->
-                    <div class="w-16 h-16 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 group-hover:text-indigo-200 group-hover:bg-indigo-500/30 transition-colors relative overflow-hidden">
-                        {% if album.preview_url %}
-                            <img src="{{ album.preview_url }}" class="w-full h-full object-cover absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                        {% else %}
-                            <i class="fa-solid fa-folder text-3xl"></i>
-                        {% endif %}
-                    </div>
-                    <div class="text-center">
-                        <h3 class="text-white font-medium text-sm truncate max-w-[120px]">{{ album.title }}</h3>
-                        <span class="text-xs text-slate-400">{{ album.asset_count }} items</span>
-                    </div>
-                </a>
-                {% endfor %}
             </div>
         </div>
-        {% endif %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-500 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
+        <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 animate-float">
+            <i class="fa-regular fa-images text-4xl text-emerald-400/50"></i>
+        </div>
+        <h3 class="text-xl font-medium text-slate-300">No assets found</h3>
+        <p class="text-sm opacity-60 mt-2 max-w-sm text-center">Your secure gallery is empty. Upload your first image to get started.</p>
+        <div class="flex gap-4 mt-8">
+             <button onclick="document.getElementById('uploadInput').click()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/20">
+                Upload File
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
-        <!-- ASSETS GRID -->
-        {% if assets %}
-            {% if not current_album %}<h2 class="text-lg font-semibold text-slate-300 mb-4 flex items-center gap-2"><i class="fa-regular fa-image"></i> Recent Uploads</h2>{% endif %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {% for asset in assets %}
-                {% set current_index = loop.index0 %}
-                <div class="group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
-                     onclick="openLightbox({{ current_index }})">
-                    <!-- Image -->
-                    <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
-                        <img src="{{ asset.url_thumbnail }}" 
-                             alt="{{ asset.title }}" 
-                             loading="lazy"
-                             class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
-                        <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
-                    </div>
-                    
-                    <!-- Overlay Info -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
-                        <h3 class="text-white font-medium truncate text-lg tracking-wide">{{ asset.title }}</h3>
-                        <div class="flex justify-between items-center mt-3">
-                            <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
-                                {{ asset.mime_type.split('/')[-1] | upper }}
-                            </span>
-                            <div class="flex gap-2">
-                                <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
-                                    <i class="fa-solid fa-expand text-xs"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <!-- Empty State -->
-            <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-500 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
-                <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 animate-float">
-                    <i class="fa-regular fa-images text-4xl text-emerald-400/50"></i>
-                </div>
-                <h3 class="text-xl font-medium text-slate-300">No assets found</h3>
-                <p class="text-sm opacity-60 mt-2 max-w-sm text-center">Your secure gallery is empty. Upload your first image to get started.</p>
-                <div class="flex gap-4 mt-8">
-                     <button onclick="document.getElementById('uploadInput').click()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/20">
-                        Upload File
-                    </button>
-                     <button onclick="document.getElementById('uploadFolderInput').click()" class="px-6 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold rounded-full transition-all shadow-lg shadow-indigo-500/20">
-                        Upload Folder
-                    </button>
-                </div>
-            </div>
-        {% endif %}
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <!-- Close Button -->
+    <button onclick="closeLightbox()" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-50">
+        <i class="fa-solid fa-xmark text-lg"></i>
+    </button>
 
-    </main>
-
-    <!-- Lightbox Modal -->
-    <div id="lightbox" class="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-        <!-- Close Button -->
-        <button onclick="closeLightbox()" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-50">
-            <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-
-        <!-- Navigation Buttons -->
-        <button onclick="prevImage(event)" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
-            <i class="fa-solid fa-chevron-left text-xl"></i>
-        </button>
-        <button onclick="nextImage(event)" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
-            <i class="fa-solid fa-chevron-right text-xl"></i>
-        </button>
+    <!-- Navigation Buttons -->
+    <button onclick="prevImage(event)" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
+        <i class="fa-solid fa-chevron-left text-xl"></i>
+    </button>
+    <button onclick="nextImage(event)" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all z-50 hover:scale-110">
+        <i class="fa-solid fa-chevron-right text-xl"></i>
+    </button>
+    
+    <div class="relative max-w-7xl w-full max-h-[90vh] flex flex-col items-center">
+        <img id="lightbox-img" src="" alt="Full View" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl shadow-black/50 transition-opacity duration-300">
         
-        <div class="relative max-w-7xl w-full max-h-[90vh] flex flex-col items-center">
-            <img id="lightbox-img" src="" alt="Full View" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl shadow-black/50 transition-opacity duration-300">
-            
-            <div class="mt-6 flex flex-col items-center gap-1">
-                <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
-                <div class="flex items-center gap-3 text-sm text-slate-400">
-                    <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
-                    <span id="lightbox-date"></span>
-                </div>
-                <a id="lightbox-download" href="#" target="_blank" class="mt-4 px-6 py-2 bg-white/10 hover:bg-emerald-500 text-white rounded-full transition-all text-sm font-medium border border-white/10 hover:border-transparent">
-                    <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Open Original
-                </a>
+        <div class="mt-6 flex flex-col items-center gap-1">
+            <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
+            <div class="flex items-center gap-3 text-sm text-slate-400">
+                <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
+                <span id="lightbox-date"></span>
             </div>
+            <a id="lightbox-download" href="#" target="_blank" class="mt-4 px-6 py-2 bg-white/10 hover:bg-emerald-500 text-white rounded-full transition-all text-sm font-medium border border-white/10 hover:border-transparent">
+                <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Open Original
+            </a>
         </div>
     </div>
+</div>
 
-    <!-- Hidden Form for Upload -->
-    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
-        <!-- Standard File Upload -->
-        <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
-        <!-- Folder Upload -->
-        <input type="file" name="file" id="uploadFolderInput" webkitdirectory directory multiple onchange="submitUpload()">
-    </form>
+<!-- Hidden Form for Upload -->
+<form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
+    <!-- Standard File Upload -->
+    <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
+</form>
 
-    <!-- Mobile FAB Upload (Split?) -->
-    <div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40">
-         <button onclick="document.getElementById('uploadFolderInput').click()"
-            class="w-12 h-12 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full shadow-lg shadow-indigo-500/30 flex items-center justify-center text-xl transition-transform hover:scale-110 active:scale-95 border border-indigo-300/20">
-            <i class="fa-solid fa-folder-plus"></i>
-        </button>
-        <button onclick="document.getElementById('uploadInput').click()"
-                class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20">
-            <i class="fa-solid fa-plus"></i>
-        </button>
+<!-- Mobile FAB Upload -->
+<div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40">
+    <button onclick="document.getElementById('uploadInput').click()"
+            class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loader" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] hidden flex-col items-center justify-center transition-all duration-300">
+    <div class="relative">
+        <div class="w-16 h-16 border-4 border-slate-700 rounded-full"></div>
+        <div class="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-400 rounded-full border-t-transparent animate-spin"></div>
     </div>
+    <p class="text-emerald-400 font-medium tracking-[0.2em] mt-6 animate-pulse text-sm">UPLOADING ASSETS...</p>
+    <p class="text-slate-500 text-xs mt-2">This might take a moment.</p>
+</div>
 
-    <!-- Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] hidden flex-col items-center justify-center transition-all duration-300">
-        <div class="relative">
-            <div class="w-16 h-16 border-4 border-slate-700 rounded-full"></div>
-            <div class="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-400 rounded-full border-t-transparent animate-spin"></div>
-        </div>
-        <p class="text-emerald-400 font-medium tracking-[0.2em] mt-6 animate-pulse text-sm">UPLOADING ASSETS...</p>
-        <p class="text-slate-500 text-xs mt-2">This might take a moment.</p>
-    </div>
+<!-- Drag Overlay -->
+<div id="dragOverlay" class="fixed inset-0 bg-emerald-500/10 backdrop-blur-sm z-[150] hidden flex flex-col items-center justify-center border-4 border-dashed border-emerald-500/50 m-4 rounded-3xl pointer-events-none">
+    <i class="fa-solid fa-cloud-arrow-up text-6xl text-emerald-400 mb-4 animate-bounce"></i>
+    <h2 class="text-3xl font-bold text-white">Drop to Upload</h2>
+</div>
+{% endblock %}
 
-    <!-- Drag Overlay -->
-    <div id="dragOverlay" class="fixed inset-0 bg-emerald-500/10 backdrop-blur-sm z-[150] hidden flex flex-col items-center justify-center border-4 border-dashed border-emerald-500/50 m-4 rounded-3xl pointer-events-none">
-        <i class="fa-solid fa-cloud-arrow-up text-6xl text-emerald-400 mb-4 animate-bounce"></i>
-        <h2 class="text-3xl font-bold text-white">Drop to Upload</h2>
-    </div>
+{% block scripts %}
+<script>
+    const form = document.getElementById('uploadForm');
+    const loader = document.getElementById('loader');
+    const lightbox = document.getElementById('lightbox');
+    const dragOverlay = document.getElementById('dragOverlay');
 
-    <script>
-        const form = document.getElementById('uploadForm');
-        const loader = document.getElementById('loader');
-        const lightbox = document.getElementById('lightbox');
-        const dragOverlay = document.getElementById('dragOverlay');
+    // Serialize assets for JS access
+    const galleryData = [
+        {% for asset in assets %}
+        {
+            url: "{{ asset.url_full }}",
+            title: "{{ asset.title }}",
+            type: "{{ asset.mime_type }}",
+            date: "{{ asset.created_at }}"
+        },
+        {% endfor %}
+    ];
+    
+    let currentLightboxIndex = 0;
 
-        // Serialize assets for JS access
-        const galleryData = [
-            {% for asset in assets %}
-            {
-                url: "{{ asset.url_full }}",
-                title: "{{ asset.title }}",
-                type: "{{ asset.mime_type }}",
-                date: "{{ asset.created_at }}"
-            },
-            {% endfor %}
-        ];
-        
-        let currentLightboxIndex = 0;
+    function submitUpload() {
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+        form.submit();
+    }
 
-        function submitUpload() {
-            loader.classList.remove('hidden');
-            loader.classList.add('flex');
-            form.submit();
-        }
+    // --- Drag & Drop Handling ---
+    let dragCounter = 0;
 
-        // --- Flash Message Handling ---
-        function dismissFlash(element) {
-            element.style.opacity = '0';
-            setTimeout(() => element.remove(), 500); // Remove after fade out
-        }
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
-        // Auto-dismiss after 3 seconds
-        document.addEventListener('DOMContentLoaded', () => {
-            const messages = document.querySelectorAll('.flash-message');
-            if (messages.length > 0) {
-                setTimeout(() => {
-                    messages.forEach(msg => dismissFlash(msg));
-                }, 3000);
-            }
-        });
+    document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        dragOverlay.classList.remove('hidden');
+    });
 
-        // --- Drag & Drop Handling ---
-        let dragCounter = 0;
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        document.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragCounter++;
-            dragOverlay.classList.remove('hidden');
-        });
-
-        document.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dragCounter--;
-            if (dragCounter === 0) {
-                dragOverlay.classList.add('hidden');
-            }
-        });
-
-        document.addEventListener('dragover', (e) => {
-             e.preventDefault(); // Necessary to allow dropping
-        });
-
-        document.addEventListener('drop', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dragCounter = 0;
+    document.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
             dragOverlay.classList.add('hidden');
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                document.getElementById('uploadInput').files = files;
-                submitUpload();
-            }
-        });
-
-        // --- Lightbox Logic ---
-        function updateLightboxContent() {
-            const asset = galleryData[currentLightboxIndex];
-            if (!asset) return;
-
-            const img = document.getElementById('lightbox-img');
-            
-            // Fade out slightly before changing
-            img.style.opacity = '0.5';
-            
-            setTimeout(() => {
-                img.src = asset.url;
-                document.getElementById('lightbox-title').innerText = asset.title;
-                document.getElementById('lightbox-type').innerText = asset.type.split('/')[1];
-                document.getElementById('lightbox-date').innerText = new Date(asset.date).toLocaleDateString();
-                document.getElementById('lightbox-download').href = asset.url;
-                img.style.opacity = '1';
-            }, 150);
         }
+    });
 
-        function openLightbox(index) {
-            currentLightboxIndex = index;
-            updateLightboxContent();
-            
-            lightbox.classList.remove('hidden');
-            // Trigger reflow
-            void lightbox.offsetWidth;
-            lightbox.classList.remove('opacity-0');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
-        }
+    document.addEventListener('dragover', (e) => {
+         e.preventDefault(); // Necessary to allow dropping
+    });
 
-        function closeLightbox() {
-            lightbox.classList.add('opacity-0');
-            setTimeout(() => {
-                lightbox.classList.add('hidden');
-                document.body.style.overflow = '';
-            }, 300);
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter = 0;
+        dragOverlay.classList.add('hidden');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            document.getElementById('uploadInput').files = files;
+            submitUpload();
         }
+    });
+
+    // --- Lightbox Logic ---
+    function updateLightboxContent() {
+        const asset = galleryData[currentLightboxIndex];
+        if (!asset) return;
+
+        const img = document.getElementById('lightbox-img');
         
-        function nextImage(e) {
-            if(e) e.stopPropagation();
-            currentLightboxIndex = (currentLightboxIndex + 1) % galleryData.length;
-            updateLightboxContent();
+        // Fade out slightly before changing
+        img.style.opacity = '0.5';
+        
+        setTimeout(() => {
+            img.src = asset.url;
+            document.getElementById('lightbox-title').innerText = asset.title;
+            document.getElementById('lightbox-type').innerText = asset.type.split('/')[1];
+            document.getElementById('lightbox-date').innerText = new Date(asset.date).toLocaleDateString();
+            document.getElementById('lightbox-download').href = asset.url;
+            img.style.opacity = '1';
+        }, 150);
+    }
+
+    function openLightbox(index) {
+        currentLightboxIndex = index;
+        updateLightboxContent();
+        
+        lightbox.classList.remove('hidden');
+        // Trigger reflow
+        void lightbox.offsetWidth;
+        lightbox.classList.remove('opacity-0');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+    }
+
+    function closeLightbox() {
+        lightbox.classList.add('opacity-0');
+        setTimeout(() => {
+            lightbox.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
+    }
+    
+    function nextImage(e) {
+        if(e) e.stopPropagation();
+        currentLightboxIndex = (currentLightboxIndex + 1) % galleryData.length;
+        updateLightboxContent();
+    }
+
+    function prevImage(e) {
+        if(e) e.stopPropagation();
+        currentLightboxIndex = (currentLightboxIndex - 1 + galleryData.length) % galleryData.length;
+        updateLightboxContent();
+    }
+
+    // Keyboard Navigation
+    document.addEventListener('keydown', (e) => {
+        if (lightbox.classList.contains('hidden')) return;
+
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowRight') nextImage();
+        if (e.key === 'ArrowLeft') prevImage();
+    });
+
+    // Close on clicking outside image
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            closeLightbox();
         }
-
-        function prevImage(e) {
-            if(e) e.stopPropagation();
-            currentLightboxIndex = (currentLightboxIndex - 1 + galleryData.length) % galleryData.length;
-            updateLightboxContent();
-        }
-
-        // Keyboard Navigation
-        document.addEventListener('keydown', (e) => {
-            if (lightbox.classList.contains('hidden')) return;
-
-            if (e.key === 'Escape') closeLightbox();
-            if (e.key === 'ArrowRight') nextImage();
-            if (e.key === 'ArrowLeft') prevImage();
-        });
-
-        // Close on clicking outside image
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox) {
-                closeLightbox();
-            }
-        });
-
-        // --- Particles JS Initialization ---
-        particlesJS("particles-js", {
-            "particles": {
-                "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
-                "color": { "value": "#818cf8" },
-                "shape": { "type": "circle" },
-                "opacity": { "value": 0.2, "random": true },
-                "size": { "value": 3, "random": true },
-                "line_linked": { "enable": true, "distance": 150, "color": "#34d399", "opacity": 0.1, "width": 1 },
-                "move": { "enable": true, "speed": 1, "direction": "none", "random": true, "straight": false, "out_mode": "out", "bounce": false }
-            },
-            "interactivity": {
-                "detect_on": "canvas",
-                "events": { "onhover": { "enable": true, "mode": "grab" }, "onclick": { "enable": false } },
-                "modes": { "grab": { "distance": 140, "line_linked": { "opacity": 0.5 } } }
-            },
-            "retina_detect": true
-        });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}
