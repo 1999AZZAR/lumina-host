@@ -5,6 +5,14 @@
 {% block body_attr %}ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endblock %}
 
 {% block navbar_actions %}
+<!-- Search Bar -->
+<div class="hidden md:flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-2 mr-4 focus-within:bg-white/10 transition-colors w-64">
+    <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
+    <input type="text" id="searchInput" placeholder="Search assets..." 
+           class="bg-transparent border-none outline-none text-sm text-white placeholder-slate-500 ml-3 w-full"
+           oninput="handleSearch(this.value)">
+</div>
+
 <!-- Selection Mode Toggle -->
 <button id="selectModeBtn" onclick="toggleSelectionMode()" 
         class="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-sm font-medium backdrop-blur-sm group hover:border-indigo-400/30">
@@ -22,7 +30,7 @@
 
 {% block content %}
 <!-- Header -->
-<header class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
     <div class="text-center md:text-left">
         <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 mb-2 tracking-tight">
             Digital Assets
@@ -33,24 +41,22 @@
         </p>
     </div>
     
-    <!-- Drag & Drop Zone Hint -->
-    <div class="hidden md:flex items-center gap-4 px-6 py-3 rounded-xl border border-dashed border-white/10 bg-white/5 text-slate-400 text-sm">
-        <i class="fa-solid fa-file-arrow-up text-xl text-slate-500"></i>
-        <div class="flex flex-col">
-            <span class="font-medium text-slate-300">Drag & Drop anywhere</span>
-            <span class="text-xs opacity-60">to upload instantly</span>
+    <!-- Mobile Search (Visible only on small screens) -->
+    <div class="md:hidden w-full">
+        <div class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 transition-colors">
+            <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+            <input type="text" placeholder="Search..." class="bg-transparent border-none outline-none text-white placeholder-slate-500 ml-3 w-full"
+                   oninput="handleSearch(this.value)">
         </div>
     </div>
 </header>
 
 <!-- ASSETS GRID -->
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="assets-grid">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6" id="assets-grid">
     {% for asset in assets %}
-    {% set current_index = loop.index0 %}
     <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer"
          data-id="{{ asset.id }}"
-         data-index="{{ current_index }}"
-         onclick="handleAssetClick(this, {{ current_index }})">
+         onclick="handleAssetClick(this, {{ loop.index0 }})"> <!-- Note: Index logic needs update for Infinite Scroll -->
         
         <!-- Selection Checkbox Overlay -->
         <div class="selection-overlay absolute top-3 right-3 z-20 hidden">
@@ -83,21 +89,12 @@
             </div>
         </div>
     </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-500 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
-        <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 animate-float">
-            <i class="fa-regular fa-images text-4xl text-emerald-400/50"></i>
-        </div>
-        <h3 class="text-xl font-medium text-slate-300">No assets found</h3>
-        <p class="text-sm opacity-60 mt-2 max-w-sm text-center">Your secure gallery is empty. Upload your first image to get started.</p>
-        <div class="flex gap-4 mt-8">
-             <button onclick="document.getElementById('uploadInput').click()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/20">
-                Upload File
-            </button>
-        </div>
-    </div>
     {% endfor %}
+</div>
+
+<!-- Sentinel for Infinite Scroll -->
+<div id="sentinel" class="h-20 w-full flex items-center justify-center mt-8 opacity-0 transition-opacity duration-300">
+    <div class="w-8 h-8 border-4 border-white/10 border-t-emerald-400 rounded-full animate-spin"></div>
 </div>
 
 <!-- Lightbox Modal -->
@@ -118,25 +115,26 @@
     <div class="relative max-w-7xl w-full max-h-[90vh] flex flex-col items-center">
         <img id="lightbox-img" src="" alt="Full View" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl shadow-black/50 transition-opacity duration-300">
         
-                    <div class="mt-6 flex flex-col items-center gap-1">
-                        <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
-                        <div class="flex items-center gap-3 text-sm text-slate-400">
-                            <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
-                            <span id="lightbox-date"></span>
-                        </div>
-                        
-                        <div class="flex gap-3 mt-6">
-                            <button onclick="saveLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
-                                <i class="fa-solid fa-download text-sm group-hover:scale-110 transition-transform"></i>
-                            </button>
-                            <button onclick="shareLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
-                                <i class="fa-solid fa-share-nodes text-sm group-hover:scale-110 transition-transform"></i>
-                            </button>
-                            <a id="lightbox-download" href="#" target="_blank" class="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all border border-white/10 group">
-                                <i class="fa-solid fa-arrow-up-right-from-square text-sm group-hover:scale-110 transition-transform"></i>
-                            </a>
-                        </div>
-                    </div>    </div>
+        <div class="mt-6 flex flex-col items-center gap-1">
+            <h2 id="lightbox-title" class="text-2xl font-semibold text-white tracking-wide"></h2>
+            <div class="flex items-center gap-3 text-sm text-slate-400">
+                <span id="lightbox-type" class="uppercase tracking-wider font-bold text-xs bg-white/10 px-2 py-0.5 rounded"></span>
+                <span id="lightbox-date"></span>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button onclick="saveLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
+                    <i class="fa-solid fa-download text-sm group-hover:scale-110 transition-transform"></i>
+                </button>
+                <button onclick="shareLightboxImage()" class="w-12 h-12 rounded-full bg-white/5 hover:bg-indigo-500 hover:text-white flex items-center justify-center transition-all border border-white/10 group">
+                    <i class="fa-solid fa-share-nodes text-sm group-hover:scale-110 transition-transform"></i>
+                </button>
+                <a id="lightbox-download" href="#" target="_blank" class="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all border border-white/10 group">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-sm group-hover:scale-110 transition-transform"></i>
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Bulk Actions Bar -->
@@ -156,13 +154,26 @@
 </div>
 
 <!-- Upload Queue Panel -->
-<div id="queue-panel" class="fixed bottom-6 right-6 w-96 max-w-[90vw] z-50 flex flex-col gap-3 pointer-events-none">
-    <!-- Items will be injected here via JS -->
+<div id="queue-container" class="fixed bottom-6 right-6 w-96 max-w-[90vw] z-50 pointer-events-none transition-all duration-300 translate-y-4 opacity-0">
+    <div class="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
+        <!-- Header -->
+        <div class="px-4 py-3 bg-white/5 border-b border-white/5 flex justify-between items-center pointer-events-auto">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-emerald-400"></i> Upload Queue
+            </h3>
+            <button onclick="uploader.clearCompleted()" class="text-xs text-slate-400 hover:text-white transition-colors">
+                Clear Done
+            </button>
+        </div>
+        <!-- Scrollable List -->
+        <div id="queue-list" class="max-h-64 overflow-y-auto p-2 flex flex-col gap-2 pointer-events-auto">
+            <!-- Items injected here -->
+        </div>
+    </div>
 </div>
 
 <!-- Hidden Form for Upload -->
 <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
-    <!-- Standard File Upload -->
     <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
 </form>
 
@@ -192,24 +203,19 @@
 
 {% block scripts %}
 <script>
+    const galleryGrid = document.getElementById('assets-grid');
+    const sentinel = document.getElementById('sentinel');
     const form = document.getElementById('uploadForm');
     const loader = document.getElementById('loader');
     const lightbox = document.getElementById('lightbox');
     const dragOverlay = document.getElementById('dragOverlay');
     const queuePanel = document.getElementById('queue-panel');
-    const galleryGrid = document.querySelector('.grid');
     
-    // Selection State
-    let isSelectionMode = false;
-    let selectedIds = new Set();
-    const selectModeBtn = document.getElementById('selectModeBtn');
-    const bulkActions = document.getElementById('bulk-actions');
-    const selectedCountSpan = document.getElementById('selected-count');
-
-    // Serialize assets for JS access
+    // State
     let galleryData = [
         {% for asset in assets %}
         {
+            id: "{{ asset.id }}",
             url: "{{ asset.url_full }}",
             title: "{{ asset.title }}",
             type: "{{ asset.mime_type }}",
@@ -218,54 +224,182 @@
         {% endfor %}
     ];
     
+    let currentPage = 1;
+    let hasMore = {{ 'true' if has_more else 'false' }};
+    let isLoading = false;
+    let searchQuery = '';
+    let searchDebounceTimer;
     let currentLightboxIndex = 0;
+    
+    let isSelectionMode = false;
+    let selectedIds = new Set();
+    const selectModeBtn = document.getElementById('selectModeBtn');
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    // --- Infinite Scroll ---
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+            loadMore();
+        }
+    });
+    observer.observe(sentinel);
+
+    async function loadMore() {
+        isLoading = true;
+        sentinel.classList.remove('opacity-0');
+        
+        try {
+            const res = await fetch(`/api/assets?page=${currentPage + 1}&q=${encodeURIComponent(searchQuery)}`);
+            const data = await res.json();
+            
+            if (data.assets.length > 0) {
+                data.assets.forEach(asset => {
+                    const mappedAsset = {
+                        id: asset.id,
+                        url: asset.url_full,
+                        title: asset.title,
+                        type: asset.mime_type,
+                        date: asset.created_at
+                    };
+                    galleryData.push(mappedAsset);
+                    galleryGrid.insertAdjacentHTML('beforeend', createAssetCard(mappedAsset, galleryData.length - 1));
+                });
+                currentPage++;
+            }
+            
+            hasMore = data.has_more;
+            if (!hasMore) {
+                sentinel.style.display = 'none'; // Hide permanently if done
+            }
+        } catch (e) {
+            console.error("Load more failed", e);
+        } finally {
+            isLoading = false;
+            sentinel.classList.add('opacity-0');
+        }
+    }
+
+    // --- Search Logic ---
+    function handleSearch(query) {
+        clearTimeout(searchDebounceTimer);
+        searchQuery = query;
+        searchDebounceTimer = setTimeout(performSearch, 300);
+    }
+
+    async function performSearch() {
+        galleryGrid.innerHTML = ''; // Clear grid
+        galleryData = [];
+        currentPage = 0;
+        hasMore = true;
+        sentinel.style.display = 'flex';
+        
+        await loadMore(); // Fetch page 1 with new query
+    }
+
+    // --- HTML Generators ---
+    function createAssetCard(asset, index) {
+        // Safe mime check
+        const type = asset.type && asset.type.includes('/') ? asset.type.split('/')[1].toUpperCase() : 'IMG';
+        
+        return `
+        <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out]"
+             data-id="${asset.id}"
+             onclick="handleAssetClick(this, ${index})">
+            
+            <div class="selection-overlay absolute top-3 right-3 z-20 ${isSelectionMode ? '' : 'hidden'}">
+                 <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
+                    <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
+                 </div>
+            </div>
+
+            <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
+                <img src="${asset.url}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
+                <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
+            </div>
+            
+            <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+                <h3 class="text-white font-medium truncate text-lg tracking-wide">${asset.title}</h3>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
+                        ${type}
+                    </span>
+                    <div class="flex gap-2">
+                        <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
+                            <i class="fa-solid fa-expand text-xs"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // --- Click Handler (Dynamic) ---
+    // Note: Inline onclick="handleAssetClick(this, index)" works, but index must be correct.
+    // Since we append, indices match galleryData array positions perfectly.
+    // However, if we delete, indices shift? 
+    // Yes. Deleting items breaks static index references.
+    // Fix: Find index dynamically based on data-id when clicking.
+    
+    function handleAssetClick(card, index) { // index param ignored in favor of dynamic lookup
+        const id = card.getAttribute('data-id');
+        
+        if (isSelectionMode) {
+            toggleAssetSelection(card, id);
+        } else {
+            // Find true index in galleryData
+            const trueIndex = galleryData.findIndex(item => String(item.id) === String(id));
+            if (trueIndex !== -1) openLightbox(trueIndex);
+        }
+    }
+
+    function toggleAssetSelection(card, id) {
+        const checkbox = card.querySelector('.checkbox-circle');
+        const checkIcon = card.querySelector('.fa-check');
+        
+        if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            checkbox.classList.remove('bg-emerald-500', 'border-emerald-500');
+            checkbox.classList.add('bg-black/40', 'border-white/50');
+            checkIcon.classList.remove('opacity-100', 'scale-100');
+            card.classList.remove('ring-2', 'ring-emerald-500');
+        } else {
+            selectedIds.add(id);
+            checkbox.classList.add('bg-emerald-500', 'border-emerald-500');
+            checkbox.classList.remove('bg-black/40', 'border-white/50');
+            checkIcon.classList.add('opacity-100', 'scale-100');
+            card.classList.add('ring-2', 'ring-emerald-500');
+        }
+        updateSelectionUI();
+    }
 
     // --- Selection Logic ---
     function toggleSelectionMode() {
         isSelectionMode = !isSelectionMode;
         
-        // Update Button UI
         if (isSelectionMode) {
             selectModeBtn.classList.add('bg-indigo-500/20', 'border-indigo-500/50');
             selectModeBtn.querySelector('span').innerText = 'Cancel';
             document.querySelectorAll('.selection-overlay').forEach(el => el.classList.remove('hidden'));
-            document.getElementById('fab-container').classList.add('translate-y-32'); // Hide FAB
+            document.getElementById('fab-container').classList.add('translate-y-32');
         } else {
             selectModeBtn.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
             selectModeBtn.querySelector('span').innerText = 'Select';
             document.querySelectorAll('.selection-overlay').forEach(el => el.classList.add('hidden'));
-            document.getElementById('fab-container').classList.remove('translate-y-32'); // Show FAB
-            
-            // Clear selections
+            document.getElementById('fab-container').classList.remove('translate-y-32');
             selectedIds.clear();
             updateSelectionUI();
-        }
-    }
-
-    function handleAssetClick(card, index) {
-        if (isSelectionMode) {
-            const id = card.getAttribute('data-id');
-            const checkbox = card.querySelector('.checkbox-circle');
-            const checkIcon = card.querySelector('.fa-check');
             
-            if (selectedIds.has(id)) {
-                selectedIds.delete(id);
-                // Unchecked styles
+            // Reset visual selection state on all cards
+            document.querySelectorAll('.asset-card').forEach(card => {
+                const checkbox = card.querySelector('.checkbox-circle');
+                const checkIcon = card.querySelector('.fa-check');
                 checkbox.classList.remove('bg-emerald-500', 'border-emerald-500');
                 checkbox.classList.add('bg-black/40', 'border-white/50');
                 checkIcon.classList.remove('opacity-100', 'scale-100');
                 card.classList.remove('ring-2', 'ring-emerald-500');
-            } else {
-                selectedIds.add(id);
-                // Checked styles
-                checkbox.classList.add('bg-emerald-500', 'border-emerald-500');
-                checkbox.classList.remove('bg-black/40', 'border-white/50');
-                checkIcon.classList.add('opacity-100', 'scale-100');
-                card.classList.add('ring-2', 'ring-emerald-500');
-            }
-            updateSelectionUI();
-        } else {
-            openLightbox(index);
+            });
         }
     }
 
@@ -278,10 +412,9 @@
         }
     }
 
-    // --- Bulk Download ---
+    // --- Bulk Download & Delete (Same as before but refined) ---
     async function downloadSelected() {
         if (selectedIds.size === 0) return;
-
         loader.classList.remove('hidden');
         loader.classList.add('flex');
         
@@ -290,23 +423,13 @@
         const folder = zip.folder("lumina-assets");
 
         selectedIds.forEach(id => {
-            // Find asset data
-            const card = document.querySelector(`.asset-card[data-id="${id}"]`);
-            if (!card) return;
-            const index = card.getAttribute('data-index');
-            const asset = galleryData[index];
+            const asset = galleryData.find(item => String(item.id) === String(id));
+            if (!asset) return;
             
-            // Fetch blob
             const promise = fetch(asset.url)
-                .then(response => {
-                    if (response.ok) return response.blob();
-                    throw new Error('Network response was not ok');
-                })
-                .then(blob => {
-                    folder.file(asset.title || `image-${id}.jpg`, blob);
-                })
-                .catch(err => console.error("Failed to fetch image", err));
-            
+                .then(r => { if(r.ok) return r.blob(); throw new Error('Fail'); })
+                .then(blob => folder.file(asset.title || `image-${id}.jpg`, blob))
+                .catch(e => console.error(e));
             promises.push(promise);
         });
 
@@ -314,23 +437,15 @@
             await Promise.all(promises);
             const content = await zip.generateAsync({type:"blob"});
             saveAs(content, "lumina-gallery.zip");
-            
-            // Exit selection mode
             toggleSelectionMode();
-        } catch (e) {
-            console.error(e);
-            alert("Failed to generate zip");
-        } finally {
-            loader.classList.add('hidden');
-            loader.classList.remove('flex');
-        }
+        } catch (e) { alert("Download failed"); }
+        finally { loader.classList.add('hidden'); loader.classList.remove('flex'); }
     }
 
-    // --- Bulk Delete ---
     function confirmDelete() {
         showModal({
             title: 'Delete Assets?',
-            message: `Are you sure you want to delete ${selectedIds.size} items? This action cannot be undone.`,
+            message: `Delete ${selectedIds.size} items?`,
             color: 'rose',
             icon: 'fa-trash-can',
             onConfirm: performDelete
@@ -340,375 +455,253 @@
     async function performDelete() {
         loader.classList.remove('hidden');
         loader.classList.add('flex');
-
         try {
-            const response = await fetch('/delete', {
+            const res = await fetch('/delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ ids: Array.from(selectedIds) })
             });
-
-            if (response.ok) {
-                // Remove deleted items from DOM
+            if (res.ok) {
+                // Remove from DOM and galleryData
                 selectedIds.forEach(id => {
                     const card = document.querySelector(`.asset-card[data-id="${id}"]`);
-                    if (card) {
-                        card.style.opacity = '0';
-                        card.style.transform = 'scale(0.9)';
-                        setTimeout(() => card.remove(), 300);
-                    }
+                    if (card) card.remove();
+                    
+                    const idx = galleryData.findIndex(i => String(i.id) === String(id));
+                    if (idx > -1) galleryData.splice(idx, 1);
                 });
-                
-                // Exit mode
                 toggleSelectionMode();
-                
-                // Show Empty State if grid is empty (delayed check)
-                setTimeout(() => {
-                    if (galleryGrid.querySelectorAll('.asset-card').length === 0) {
-                        location.reload(); 
-                    }
-                }, 400);
-                
-            } else {
-                alert('Failed to delete some items.');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('An error occurred.');
-        } finally {
-            loader.classList.add('hidden');
-            loader.classList.remove('flex');
-        }
+            } else { alert('Delete failed'); }
+        } catch(e) { alert('Error'); }
+        finally { loader.classList.add('hidden'); loader.classList.remove('flex'); }
     }
 
-
-    // --- QUEUE MANAGER ---
-    class UploadQueue {
-        constructor() {
-            this.queue = [];
-            this.isProcessing = false;
-        }
-
-        add(files) {
-            Array.from(files).forEach(file => {
-                const id = Math.random().toString(36).substr(2, 9);
-                const item = { id, file, status: 'pending', element: null };
-                this.queue.push(item);
-                this.createUI(item);
-            });
-            this.process();
-        }
-
-        createUI(item) {
-            const el = document.createElement('div');
-            el.className = 'glass-panel p-3 rounded-xl flex items-center gap-3 shadow-lg transform transition-all duration-300 translate-y-4 opacity-0 pointer-events-auto';
-            el.id = `queue-${item.id}`;
-            el.innerHTML = `
-                <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <i class="fa-regular fa-image text-slate-300"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                        <p class="text-xs font-medium text-white truncate pr-2">${item.file.name}</p>
-                        <span class="text-[10px] uppercase tracking-wider text-slate-400 status-text">Pending</span>
-                    </div>
-                    <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
-                        <div class="progress-bar bg-emerald-400 h-full w-0 transition-all duration-300"></div>
-                    </div>
-                </div>
-            `;
-            queuePanel.appendChild(el);
-            requestAnimationFrame(() => {
-                el.classList.remove('translate-y-4', 'opacity-0');
-            });
-            item.element = el;
-        }
-
-        async process() {
-            if (this.isProcessing || this.queue.length === 0) return;
-            this.isProcessing = true;
-
-            const item = this.queue[0];
-            await this.upload(item);
-
-            this.queue.shift();
-            this.isProcessing = false;
+        // --- Upload Queue (Refined) ---
+        const queueContainer = document.getElementById('queue-container');
+        const queueList = document.getElementById('queue-list');
+    
+        class UploadQueue {
+            constructor() { this.queue = []; this.isProcessing = false; }
             
-            if (item.status === 'success') {
-                 setTimeout(() => {
-                    item.element.classList.add('opacity-0', 'translate-x-full');
-                    setTimeout(() => item.element.remove(), 500);
-                 }, 3000);
-            }
-
-            setTimeout(() => this.process(), 300); // Reduced throttle
-        }
-
-        async upload(item) {
-            const formData = new FormData();
-            formData.append('file', item.file);
-            
-            this.updateUI(item, 'uploading', 50);
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            add(files) {
+                this.show();
+                Array.from(files).forEach(file => {
+                    const id = Math.random().toString(36).substr(2, 9);
+                    const controller = new AbortController();
+                    const item = { id, file, status: 'pending', element: null, controller };
+                    this.queue.push(item);
+                    this.createUI(item);
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    this.updateUI(item, 'success', 100);
-                    if (data.assets && data.assets.length > 0) {
-                        this.addToGallery(data.assets[0]);
-                    }
-                    item.status = 'success';
-                } else {
-                    throw new Error(data.error || 'Upload failed');
-                }
-            } catch (error) {
-                console.error(error);
-                this.updateUI(item, 'error', 0, error.message);
-                item.status = 'error';
+                this.process();
             }
-        }
-
-        updateUI(item, status, progress, msg = '') {
-            const el = item.element;
-            const bar = el.querySelector('.progress-bar');
-            const txt = el.querySelector('.status-text');
-            const icon = el.querySelector('i');
-
-            if (status === 'uploading') {
-                txt.innerText = 'Uploading...';
-                txt.className = 'text-[10px] uppercase tracking-wider text-indigo-300 status-text animate-pulse';
-                bar.style.width = `${progress}%`;
-                bar.className = 'progress-bar bg-indigo-400 h-full transition-all duration-300';
-            } else if (status === 'success') {
-                txt.innerText = 'Complete';
-                txt.className = 'text-[10px] uppercase tracking-wider text-emerald-400 status-text';
-                bar.style.width = '100%';
-                bar.className = 'progress-bar bg-emerald-400 h-full transition-all duration-300';
-                icon.className = 'fa-solid fa-check text-emerald-400';
-            } else if (status === 'error') {
-                txt.innerText = 'Failed';
-                txt.className = 'text-[10px] uppercase tracking-wider text-rose-400 status-text';
-                bar.style.width = '100%';
-                bar.className = 'progress-bar bg-rose-400 h-full transition-all duration-300';
-                icon.className = 'fa-solid fa-triangle-exclamation text-rose-400';
+    
+            show() {
+                queueContainer.classList.remove('translate-y-4', 'opacity-0');
             }
-        }
-
-        addToGallery(asset) {
-            galleryData.unshift({
-                url: asset.url_full,
-                title: asset.title,
-                type: asset.mime_type,
-                date: new Date().toISOString()
-            });
-
-            const card = document.createElement('div');
-            // Add asset-card class and data attributes for selection logic
-            // Note: ID handling for new items needs care if we want to delete them immediately
-            // But for now, we'll reload if they want to delete newly added ones or use returned ID
-            // Ideally backend returns ID.
-            
-            // Wait, backend response currently sends full asset data including 'wp_media_id' but we need local DB 'id'.
-            // Let's assume database.add_asset returns the FULL object including the new ID? 
-            // In app.py: uploaded_assets.append(asset_data). 
-            // database.add_asset DOES NOT currently update asset_data with the new local ID. 
-            // It inserts it. We should fix this if we want to delete newly added items without refresh.
-            // For now, I will skip adding data-id to new items to avoid bugs, user must refresh to delete new items.
-            
-            card.className = "asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out]";
-            card.onclick = () => openLightbox(0); 
-            
-            card.innerHTML = `
-                <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
-                    <img src="${asset.url_thumbnail}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
-                    <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
-                </div>
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
-                    <h3 class="text-white font-medium truncate text-lg tracking-wide">${asset.title}</h3>
-                    <div class="flex justify-between items-center mt-3">
-                        <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
-                            ${asset.mime_type.split('/')[1].toUpperCase()}
-                        </span>
-                        <div class="flex gap-2">
-                             <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
-                                <i class="fa-solid fa-expand text-xs"></i>
-                            </span>
+    
+            createUI(item) {
+                const el = document.createElement('div');
+                el.className = 'p-2 rounded-lg bg-white/5 flex items-center gap-3 border border-white/5 transition-all duration-300';
+                el.id = `queue-${item.id}`;
+                el.innerHTML = `
+                    <div class="w-8 h-8 rounded bg-white/10 flex items-center justify-center shrink-0"><i class="fa-regular fa-image text-slate-300 text-xs"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-xs font-medium text-white truncate pr-2 max-w-[150px]">${item.file.name}</p>
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 status-text">Pending</span>
+                        </div>
+                        <div class="w-full bg-slate-700/50 rounded-full h-1 overflow-hidden">
+                            <div class="progress-bar bg-emerald-400 h-full w-0 transition-all duration-300"></div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            const emptyState = document.querySelector('.col-span-full');
-            if (emptyState) {
-                emptyState.remove();
+                    <button onclick="uploader.cancel('${item.id}')" class="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                `;
+                queueList.appendChild(el);
+                queueList.scrollTop = queueList.scrollHeight;
+                item.element = el;
             }
-            galleryGrid.insertBefore(card, galleryGrid.firstChild);
+    
+            cancel(id) {
+                const index = this.queue.findIndex(i => i.id === id);
+                if (index === -1) return;
+    
+                const item = this.queue[index];
+                
+                if (item.status === 'uploading') {
+                    item.controller.abort();
+                }
+    
+                this.queue.splice(index, 1);
+                
+                if(item.element) item.element.remove();
+    
+                if (item.status === 'uploading') {
+                    this.isProcessing = false;
+                    setTimeout(() => this.process(), 300);
+                }
+                
+                if (queueList.children.length === 0) {
+                    queueContainer.classList.add('translate-y-4', 'opacity-0');
+                }
+            }
             
-            const items = galleryGrid.children;
-            Array.from(items).forEach((item, index) => {
-                if(!item.classList.contains('asset-card')) return;
-                // Preserve existing onclick logic for lightbox
-                item.onclick = () => handleAssetClick(item, index);
-            });
-        }
-    }
-
+            clearCompleted() {
+                const pending = this.queue.filter(i => i.status === 'pending' || i.status === 'uploading');
+                
+                this.queue.forEach(i => {
+                    if ((i.status === 'success' || i.status === 'error') && i.element) {
+                        i.element.remove();
+                    }
+                });
+                
+                this.queue = pending;
+                
+                if (this.queue.length === 0) {
+                    queueContainer.classList.add('translate-y-4', 'opacity-0');
+                }
+            }
+    
+            async process() {
+                if (this.isProcessing || this.queue.length === 0) return;
+                
+                const item = this.queue.find(i => i.status === 'pending');
+                if (!item) return;
+    
+                this.isProcessing = true;
+                item.status = 'uploading';
+                
+                await this.upload(item);
+    
+                this.isProcessing = false;
+                setTimeout(() => this.process(), 300);
+            }
+    
+            async upload(item) {
+                const formData = new FormData();
+                formData.append('file', item.file);
+                this.updateUI(item, 'uploading', 50);
+                
+                try {
+                    const res = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: item.controller.signal 
+                    });
+                    
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.updateUI(item, 'success', 100);
+                        if (data.assets) this.addToGallery(data.assets[0]);
+                        item.status = 'success';
+                    } else { throw new Error(data.error); }
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        console.log('Upload cancelled');
+                    } else {
+                        this.updateUI(item, 'error', 0);
+                        item.status = 'error';
+                    }
+                }
+            }
+            
+            updateUI(item, status, progress) {
+                if (!item.element) return;
+                const bar = item.element.querySelector('.progress-bar');
+                const txt = item.element.querySelector('.status-text');
+                const btn = item.element.querySelector('button');
+                
+                if(status === 'uploading') { 
+                    txt.innerText = '...'; 
+                    bar.style.width = progress+'%'; 
+                }
+                if(status === 'success') { 
+                    txt.innerText = 'Done'; 
+                    bar.style.width = '100%'; 
+                    txt.className += ' text-emerald-400';
+                    if(btn) btn.remove();
+                }
+                if(status === 'error') { 
+                    txt.innerText = 'Err'; 
+                    bar.style.width = '100%'; 
+                    bar.className = 'progress-bar bg-rose-400 h-full'; 
+                }
+            }
+            addToGallery(asset) {
+                const mapped = { id: asset.wp_media_id || Math.random(), url: asset.url_full, title: asset.title, type: asset.mime_type, date: new Date().toISOString() };
+                galleryData.unshift(mapped);
+                galleryGrid.insertAdjacentHTML('afterbegin', createAssetCard(mapped, 0));
+            }
+        }    
     const uploader = new UploadQueue();
-
-    // Hook up Inputs
     function submitUpload() {
         const input = document.getElementById('uploadInput');
-        if (input.files.length > 0) {
-            uploader.add(input.files);
-            input.value = ''; 
-        }
+        if (input.files.length) { uploader.add(input.files); input.value = ''; }
     }
 
-    // --- Drag & Drop Handling ---
-    let dragCounter = 0;
-
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    document.addEventListener('dragenter', (e) => {
-        e.preventDefault();
-        dragCounter++;
-        dragOverlay.classList.remove('hidden');
-    });
-
-    document.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dragCounter--;
-        if (dragCounter === 0) {
-            dragOverlay.classList.add('hidden');
-        }
-    });
-
-    document.addEventListener('dragover', (e) => {
-         e.preventDefault(); 
-    });
-
+    // --- Drag & Drop ---
+    function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); }
+    document.addEventListener('dragenter', () => dragOverlay.classList.remove('hidden'));
+    document.addEventListener('dragleave', (e) => { if(e.relatedTarget === null) dragOverlay.classList.add('hidden'); });
+    document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dragCounter = 0;
-        dragOverlay.classList.add('hidden');
-
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            uploader.add(files);
-        }
+        e.preventDefault(); dragOverlay.classList.add('hidden');
+        if(e.dataTransfer.files.length) uploader.add(e.dataTransfer.files);
     });
 
-    // --- Lightbox Logic ---
+    // --- Lightbox & Lightbox Actions ---
     function updateLightboxContent() {
         const asset = galleryData[currentLightboxIndex];
         if (!asset) return;
-
         const img = document.getElementById('lightbox-img');
-        
         img.style.opacity = '0.5';
-        
         setTimeout(() => {
             img.src = asset.url;
             document.getElementById('lightbox-title').innerText = asset.title;
-            document.getElementById('lightbox-type').innerText = asset.type.split('/')[1];
+            document.getElementById('lightbox-type').innerText = asset.type.split('/')[1] || 'IMG';
             document.getElementById('lightbox-date').innerText = new Date(asset.date).toLocaleDateString();
             document.getElementById('lightbox-download').href = asset.url;
             img.style.opacity = '1';
         }, 150);
     }
-
     function openLightbox(index) {
         currentLightboxIndex = index;
         updateLightboxContent();
-        
         lightbox.classList.remove('hidden');
         void lightbox.offsetWidth;
         lightbox.classList.remove('opacity-0');
-        document.body.style.overflow = 'hidden'; 
+        document.body.style.overflow = 'hidden';
     }
-
     function closeLightbox() {
         lightbox.classList.add('opacity-0');
-        setTimeout(() => {
-            lightbox.classList.add('hidden');
-            document.body.style.overflow = '';
-        }, 300);
+        setTimeout(() => { lightbox.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
     }
-
+    function nextImage(e) { if(e) e.stopPropagation(); currentLightboxIndex = (currentLightboxIndex + 1) % galleryData.length; updateLightboxContent(); }
+    function prevImage(e) { if(e) e.stopPropagation(); currentLightboxIndex = (currentLightboxIndex - 1 + galleryData.length) % galleryData.length; updateLightboxContent(); }
+    
+    // --- Lightbox Actions (Save/Share) ---
     async function saveLightboxImage() {
         const asset = galleryData[currentLightboxIndex];
-        if (!asset) return;
-
-        loader.classList.remove('hidden');
-        loader.classList.add('flex');
-
+        if(!asset) return;
         try {
-            const response = await fetch(asset.url);
-            const blob = await response.blob();
-            saveAs(blob, asset.title || 'image.jpg');
-        } catch (e) {
-            console.error(e);
-            alert("Failed to save image");
-        } finally {
-            loader.classList.add('hidden');
-            loader.classList.remove('flex');
-        }
+            const res = await fetch(asset.url);
+            const blob = await res.blob();
+            saveAs(blob, asset.title);
+        } catch(e) { alert('Save failed'); }
     }
-
     function shareLightboxImage() {
         const asset = galleryData[currentLightboxIndex];
-        if (!asset) return;
-
-        navigator.clipboard.writeText(asset.url).then(() => {
-            // Create a temporary "Toast" notification
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[250] glass-panel px-6 py-2 rounded-full text-emerald-400 font-medium text-sm border-emerald-500/30 animate-bounce';
-            toast.innerHTML = '<i class="fa-solid fa-link mr-2"></i> Link Copied!';
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 500);
-            }, 2000);
-        });
-    }
-    
-    function nextImage(e) {
-        if(e) e.stopPropagation();
-        currentLightboxIndex = (currentLightboxIndex + 1) % galleryData.length;
-        updateLightboxContent();
-    }
-
-    function prevImage(e) {
-        if(e) e.stopPropagation();
-        currentLightboxIndex = (currentLightboxIndex - 1 + galleryData.length) % galleryData.length;
-        updateLightboxContent();
+        if(!asset) return;
+        navigator.clipboard.writeText(asset.url).then(() => alert('Link Copied!')); // Use Toast ideally
     }
 
     document.addEventListener('keydown', (e) => {
-        if (lightbox.classList.contains('hidden')) return;
-
-        if (e.key === 'Escape') closeLightbox();
-        if (e.key === 'ArrowRight') nextImage();
-        if (e.key === 'ArrowLeft') prevImage();
-    });
-
-    lightbox.addEventListener('click', (e) => {
-        if (e.target === lightbox) {
-            closeLightbox();
+        if (!lightbox.classList.contains('hidden')) {
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') nextImage();
+            if (e.key === 'ArrowLeft') prevImage();
         }
     });
 </script>
