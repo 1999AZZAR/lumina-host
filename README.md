@@ -1,62 +1,72 @@
 # Lumina Host
 
-A decoupled image gallery application that leverages **Headless WordPress** for robust media management while delivering a lightweight, custom **Flask** frontend.
+A decoupled image gallery application that leverages Headless WordPress for robust media management while delivering a lightweight, custom Flask frontend.
 
-## 🚀 Features
+## Features
 
-*   **Decoupled Architecture:** Application logic (Flask) is separated from media storage (WordPress).
-*   **Local Caching:** SQLite stores metadata for instant page loads, minimizing API calls.
-*   **Glassmorphic UI:** Modern, dark-themed interface designed with Tailwind CSS.
-*   **Mock Mode:** Built-in simulation for testing without a live WordPress instance.
-*   **Security First:** Sanitized filenames and environment-variable based configuration.
+* Decoupled Architecture: Application logic (Flask) is separated from media storage (WordPress).
+* Local Caching: SQLite stores metadata for instant page loads, minimizing API calls.
+* Glassmorphic UI: Modern, dark-themed interface designed with Tailwind CSS.
+* Mock Mode: Built-in simulation for testing without a live WordPress instance.
+* Security First: Sanitized filenames and environment-variable based configuration.
 
-## 🛠️ Technical Stack
+## Technical Stack
 
-*   **Backend:** Python 3, Flask
-*   **Database:** SQLite
-*   **Frontend:** Tailwind CSS, Font Awesome
-*   **Integration:** WordPress REST API
+* Backend: Python 3, Flask
+* Database: SQLite
+* Frontend: Tailwind CSS, Font Awesome
+* Integration: WordPress REST API
 
-## 📦 Installation
+## Installation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd lumina-host
-    ```
+1. Clone the repository:
 
-2.  **Set up Virtual Environment:**
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-    ```
+   ```bash
+   git clone https://github.com/1999AZZAR/lumina-host.git
+   cd lumina-host
+   ```
 
-3.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+2. Set up Virtual Environment:
 
-4.  **Configuration:**
-    The project comes with a `.env` file.
-    *   **Mock Mode:** Leave `WP_*` variables empty to test with simulated uploads.
-    *   **Live Mode:** Fill in your WordPress credentials to enable real CDN hosting.
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
 
-    ```env
-    WP_API_URL=https://your-site.com/wp-json/wp/v2/media
-    WP_USER=your_username
-    WP_PASS=your_application_password
-    ```
+3. Install Dependencies:
 
-5.  **Run the Application:**
-    ```bash
-    python app.py
-    ```
-    Visit `http://127.0.0.1:5000` in your browser.
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 🤝 Contributing
+4. Configuration:
+   The project includes an `example.env` file. You must rename it to `.env` to configure your environment.
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+   ```bash
+   cp example.env .env
+   ```
 
-## 📄 License
+   * Mock Mode: Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
+   * Live Mode: Fill in your WordPress credentials to enable real CDN hosting.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+   ```env
+   WP_API_URL=https://your-site.com/wp-json/wp/v2/media
+   WP_USER=your_username
+   WP_PASS=your_application_password
+   ```
+
+5. Run the Application:
+
+   ```bash
+   python app.py
+   ```
+
+   Visit `http://127.0.0.1:5000` in your browser.
+
+## Contributing
+
+Please see CONTRIBUTING.md for details on our code of conduct, and the process for submitting pull requests to us.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

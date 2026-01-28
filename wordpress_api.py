@@ -34,6 +34,7 @@ def upload_media(file_storage):
     headers = {
         'Content-Disposition': f'attachment; filename={filename}',
         'Content-Type': mime_type,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
 
     # Create Basic Auth header
@@ -49,6 +50,10 @@ def upload_media(file_storage):
             timeout=30 # Prevent hanging indefinitely
         )
         
+        # Check for errors and print response body for debugging
+        if not response.ok:
+            print(f"❌ WordPress Error {response.status_code}: {response.text[:200]}")
+
         response.raise_for_status()
         data = response.json()
         
