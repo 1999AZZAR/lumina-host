@@ -385,7 +385,7 @@ class UploadQueue {
         formData.append('file', item.file);
         this.updateUI(item, 'uploading', 50);
         try {
-            const res = await fetch('/upload', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: item.controller.signal });
+            const res = await fetch('/upload', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }, signal: item.controller.signal });
             const data = await res.json();
             if (res.ok) {
                 this.updateUI(item, 'success', 100);

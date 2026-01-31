@@ -6,13 +6,16 @@ from typing import Any
 SEARCH_QUERY_MAX_LEN = 200
 
 # MIME types allowed per extension (subset; client can lie so we only sanity-check)
+# Include common variants (e.g. image/jpg) and allow octet-stream when extension is valid (mobile often sends that)
 EXTENSION_MIME: dict[str, set[str]] = {
     'png': {'image/png'},
-    'jpg': {'image/jpeg'},
-    'jpeg': {'image/jpeg'},
+    'jpg': {'image/jpeg', 'image/jpg', 'image/pjpeg'},
+    'jpeg': {'image/jpeg', 'image/jpg', 'image/pjpeg'},
     'gif': {'image/gif'},
     'webp': {'image/webp'},
 }
+# When extension is allowed but MIME is generic/empty, still accept (extension is primary check)
+GENERIC_MIMETYPES = frozenset({'application/octet-stream', 'application/unknown', ''})
 
 
 def sanitize_search_query(raw: str | None) -> str:
@@ -49,13 +52,14 @@ def validate_delete_ids(payload: Any) -> list[int]:
 
 
 def validate_file_extension_and_mime(filename: str, mimetype: str | None) -> bool:
-    """Return True if extension is allowed and MIME matches extension (sanity check)."""
-    if not filename or not mimetype:
+    """Return True if extension is allowed; MIME must match when provided (or generic/empty is OK)."""
+    if not filename or '.' not in filename:
         return False
-    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    ext = filename.rsplit('.', 1)[-1].lower()
     allowed_mimes = EXTENSION_MIME.get(ext)
     if not allowed_mimes:
         return False
-    # Normalize mimetype (ignore params like charset)
     mime = (mimetype or '').split(';')[0].strip().lower()
+    if not mime or mime in GENERIC_MIMETYPES:
+        return True
     return mime in allowed_mimes
