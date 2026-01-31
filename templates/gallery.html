@@ -179,6 +179,7 @@
 </div>
 
 <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
 </form>
 

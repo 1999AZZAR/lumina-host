@@ -23,6 +23,12 @@ const elements = {
     lightboxDownload: document.getElementById('lightbox-download')
 };
 
+// CSRF token for AJAX
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
 // State
 let state = {
     galleryData: [],
@@ -225,7 +231,7 @@ async function performDelete() {
     try {
         const res = await fetch('/delete', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
             body: JSON.stringify({ ids: Array.from(state.selectedIds) })
         });
         if (res.ok) {
