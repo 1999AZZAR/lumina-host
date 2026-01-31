@@ -178,16 +178,15 @@
     </div>
 </div>
 
-<form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="hidden">
+<form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="absolute w-0 h-0 overflow-hidden opacity-0 pointer-events-none">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
 </form>
 
-<div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-40 transition-transform duration-300" id="fab-container">
-    <button onclick="document.getElementById('uploadInput').click()"
-            class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20">
-        <i class="fa-solid fa-plus"></i>
-    </button>
+<div class="md:hidden fixed bottom-8 right-8 flex flex-col gap-4 z-[60] transition-transform duration-300" id="fab-container">
+    <label for="uploadInput" class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-900 rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-110 active:scale-95 border border-emerald-300/20 cursor-pointer">
+        <i class="fa-solid fa-plus pointer-events-none"></i>
+    </label>
 </div>
 
 <div id="loader" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] hidden flex-col items-center justify-center transition-all duration-300">
@@ -215,6 +214,7 @@
                 urlFull: "{{ asset.url_full }}",
                 urlThumb: "{{ asset.url_thumbnail }}",
                 title: "{{ asset.title }}",
+                fileName: "{{ asset.file_name }}",
                 type: "{{ asset.mime_type }}",
                 date: "{{ asset.created_at }}"
             },

@@ -29,6 +29,15 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : '';
 }
 
+// Download filename with extension (prefer file_name, else title + ext from mime)
+function getDownloadFilename(asset) {
+    const hasExt = (s) => s && /\.\w+$/.test(s);
+    if (asset.fileName && hasExt(asset.fileName)) return asset.fileName.replace(/^.*[/\\]/, '');
+    const ext = (asset.type && asset.type.includes('/')) ? '.' + (asset.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg') : '.jpg';
+    const base = (asset.title || 'image').replace(/\.[^.]+$/, '').replace(/[/\\]/g, '-') || 'image';
+    return base + ext;
+}
+
 // State
 let state = {
     galleryData: [],
@@ -76,6 +85,7 @@ async function loadMore() {
                     urlFull: asset.url_full,
                     urlThumb: asset.url_thumbnail,
                     title: asset.title,
+                    fileName: asset.file_name,
                     type: asset.mime_type,
                     date: asset.created_at
                 };
@@ -211,7 +221,7 @@ async function downloadSelected() {
         const asset = state.galleryData.find(item => String(item.id) === String(id));
         if (!asset) return;
         const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.urlFull)}`;
-        promises.push(fetch(proxyUrl).then(r => r.blob()).then(blob => folder.file(asset.title || `img-${id}.jpg`, blob)));
+        promises.push(fetch(proxyUrl).then(r => r.blob()).then(blob => folder.file(getDownloadFilename(asset), blob)));
     });
     try {
         await Promise.all(promises);
@@ -287,7 +297,7 @@ async function saveLightboxImage() {
         const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.urlFull)}`;
         const res = await fetch(proxyUrl);
         const blob = await res.blob();
-        saveAs(blob, asset.title || 'image.jpg');
+        saveAs(blob, getDownloadFilename(asset));
     } catch(e) { alert('Save failed'); } 
     finally { toggleLoader(false); }
 }
@@ -396,7 +406,7 @@ class UploadQueue {
         if(status === 'error') { txt.innerText = 'Err'; bar.style.width = '100%'; bar.className = 'progress-bar bg-rose-400 h-full'; }
     }
     addToGallery(asset) {
-        const mapped = { id: asset.wp_media_id || Math.random(), urlFull: asset.url_full, urlThumb: asset.url_thumbnail || asset.url_full, title: asset.title, type: asset.mime_type, date: new Date().toISOString() };
+        const mapped = { id: asset.wp_media_id || Math.random(), urlFull: asset.url_full, urlThumb: asset.url_thumbnail || asset.url_full, title: asset.title, fileName: asset.file_name, type: asset.mime_type, date: new Date().toISOString() };
         state.galleryData.unshift(mapped);
         elements.grid.insertAdjacentHTML('afterbegin', createAssetCard(mapped, 0));
     }
