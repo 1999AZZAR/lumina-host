@@ -83,6 +83,17 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 
    Visit `http://127.0.0.1:5050` in your browser. Log in at `/login` to upload and delete assets. Guests can browse; upload and delete require authentication.
 
+## Running tests
+
+From the project root with the virtualenv activated:
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests/ -v
+```
+
+Tests use an isolated SQLite database and mock WordPress; no `.env` credentials are required. See [docs/API.md](docs/API.md) for endpoint coverage.
+
 ## Docker
 
 Using Docker Compose (see [docker-compose.yml](docker-compose.yml)):

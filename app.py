@@ -45,6 +45,8 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = _config.session_cookie_secure
 if _config.ratelimit_storage_url:
     app.config['RATELIMIT_STORAGE_URL'] = _config.ratelimit_storage_url
+if os.environ.get('TESTING') == '1':
+    app.config['RATELIMIT_ENABLED'] = False
 csrf = CSRFProtect(app)
 limiter = Limiter(key_func=get_remote_address, app=app, default_limits=['200 per day', '60 per hour'])
 
@@ -53,6 +55,15 @@ ALLOWED_EXTENSIONS = _config.allowed_extensions
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to continue.'
+
+
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    """Return 401 JSON for API/AJAX requests; redirect for browser."""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'error': 'Authentication required.'}), 401
+    flash(login_manager.login_message)
+    return redirect(url_for(login_manager.login_view, next=request.url))
 
 
 @login_manager.user_loader
