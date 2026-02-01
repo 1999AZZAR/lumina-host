@@ -7,6 +7,8 @@ import time
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from config import get_config
 import database
@@ -21,6 +23,14 @@ WP_UPLOAD_RETRY_BACKOFF = (1, 2, 3)  # seconds before each retry
 WP_API_URL_KEY = 'wp_api_url'
 WP_USER_KEY = 'wp_user'
 WP_PASS_KEY = 'wp_pass'
+
+# Global session with connection pooling
+session = requests.Session()
+# Configure retry strategy for low-level connection issues
+retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[502, 503, 504])
+adapter = HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=retries)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
 
 
 def _get_wp_credentials() -> tuple[str | None, str | None, str | None]:
@@ -71,7 +81,7 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
         try:
             if attempt > 0:
                 time.sleep(WP_UPLOAD_RETRY_BACKOFF[attempt - 1])
-            response = requests.post(
+            response = session.post(
                 wp_url,
                 headers=headers,
                 data=file_content,
@@ -158,7 +168,7 @@ def delete_media(wp_id: int) -> bool:
         try:
             if attempt > 0:
                 time.sleep(WP_DELETE_RETRY_BACKOFF[attempt - 1])
-            response = requests.delete(url, headers=headers, timeout=30)
+            response = session.delete(url, headers=headers, timeout=30)
             
             # Retry on server errors
             if response.status_code >= 500:

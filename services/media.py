@@ -14,7 +14,8 @@ import wordpress_api
 
 logger = logging.getLogger(__name__)
 
-UPLOAD_MAX_WORKERS = 4
+UPLOAD_MAX_WORKERS = 10
+DELETE_MAX_WORKERS = 10
 
 
 class _BytesFileWrapper:
@@ -123,5 +124,19 @@ class MediaService:
     ) -> tuple[int, int]:
         """Delete assets locally and on WordPress. Returns (local_deleted, remote_deleted)."""
         wp_ids = database.delete_assets(ids, tenant_id=tenant_id, user_id=user_id)
-        remote_deleted = sum(1 for wp_id in wp_ids if wordpress_api.delete_media(wp_id))
+        remote_deleted = 0
+        
+        if not wp_ids:
+            return (0, 0)
+        
+        # Delete from WordPress in parallel
+        with ThreadPoolExecutor(max_workers=min(DELETE_MAX_WORKERS, len(wp_ids))) as executor:
+            futures = {executor.submit(wordpress_api.delete_media, wp_id): wp_id for wp_id in wp_ids}
+            for future in as_completed(futures):
+                try:
+                    if future.result():
+                        remote_deleted += 1
+                except Exception as e:
+                    logger.error("Failed to delete WP asset: %s", e)
+                    
         return (len(wp_ids), remote_deleted)
