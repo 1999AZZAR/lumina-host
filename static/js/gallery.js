@@ -95,6 +95,7 @@ async function loadMore() {
         if (handleAuthResponse(res, data)) return;
         if (data.assets.length > 0) {
             data.assets.forEach(asset => {
+                const isPublic = asset.is_public !== undefined ? (asset.is_public ? 1 : 0) : 1;
                 const mappedAsset = {
                     id: asset.id,
                     urlFull: asset.url_full,
@@ -102,7 +103,8 @@ async function loadMore() {
                     title: asset.title,
                     fileName: asset.file_name,
                     type: asset.mime_type,
-                    date: asset.created_at
+                    date: asset.created_at,
+                    isPublic
                 };
                 state.galleryData.push(mappedAsset);
                 elements.grid.insertAdjacentHTML('beforeend', createAssetCard(mappedAsset, state.galleryData.length - 1));
@@ -136,6 +138,13 @@ async function performSearch() {
 // --- HTML Generators ---
 function createAssetCard(asset, index) {
     const type = asset.type && asset.type.includes('/') ? asset.type.split('/')[1].toUpperCase() : 'IMG';
+    const isPublic = asset.isPublic !== undefined ? !!asset.isPublic : true;
+    const showVisibility = window.LuminaConfig && window.LuminaConfig.isAuthenticated;
+    const visibilityBlock = showVisibility ? `
+        <button type="button" class="visibility-toggle absolute top-3 left-3 z-20 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-all border border-white/10" data-id="${asset.id}" data-public="${isPublic ? 1 : 0}" onclick="event.stopPropagation(); toggleVisibility(this)" title="Toggle public visibility">
+            <i class="fa-solid ${isPublic ? 'fa-eye' : 'fa-eye-slash'}"></i>
+        </button>
+        ${!isPublic ? '<span class="visibility-badge absolute top-3 left-12 z-20 text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Hidden</span>' : ''}` : '';
     return `
     <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out] pointer-events-auto"
          data-id="${asset.id}"
@@ -144,7 +153,7 @@ function createAssetCard(asset, index) {
              <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
                 <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
              </div>
-        </div>
+        </div>${visibilityBlock}
         <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
             <img src="${asset.urlThumb}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
             <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
@@ -222,6 +231,47 @@ function updateSelectionUI() {
     if(elements.selectedCountSpan) elements.selectedCountSpan.innerText = state.selectedIds.size;
     if(elements.bulkActions) {
         state.selectedIds.size > 0 ? elements.bulkActions.classList.remove('translate-y-32') : elements.bulkActions.classList.add('translate-y-32');
+    }
+}
+
+async function toggleVisibility(btn) {
+    const id = btn.getAttribute('data-id');
+    const current = parseInt(btn.getAttribute('data-public'), 10) === 1;
+    const isPublic = !current;
+    try {
+        const res = await fetch(`/api/assets/${id}/visibility`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ is_public: isPublic })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (handleAuthResponse(res, data)) return;
+        if (!res.ok) {
+            alert(data.error || 'Failed to update visibility.');
+            return;
+        }
+        btn.setAttribute('data-public', isPublic ? 1 : 0);
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.classList.remove('fa-eye', 'fa-eye-slash');
+            icon.classList.add(isPublic ? 'fa-eye' : 'fa-eye-slash');
+        }
+        const card = btn.closest('.asset-card');
+        const badge = card ? card.querySelector('.visibility-badge') : null;
+        if (isPublic && badge) badge.remove();
+        if (!isPublic && card && !badge) {
+            btn.insertAdjacentHTML('afterend', '<span class="visibility-badge absolute top-3 left-12 z-20 text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Hidden</span>');
+        }
+        const asset = state.galleryData.find(item => String(item.id) === String(id));
+        if (asset) asset.isPublic = isPublic ? 1 : 0;
+    } catch (e) {
+        console.error(e);
+        alert('Failed to update visibility.');
     }
 }
 

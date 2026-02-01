@@ -17,8 +17,9 @@ API endpoints that require auth return `401` when unauthenticated and `403` when
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/` | No | Gallery page (HTML). When logged in, assets are filtered by tenant/user; admins see all. |
-| GET | `/api/assets` | No | List assets. Query: `page` (int, default 1), `q` (search). Filtered by tenant/user when logged in. Rate limit: 60/hour. |
+| GET | `/` | No | Gallery page (HTML). Public view shows only public assets; when logged in, assets are filtered by tenant/user and include hidden; admins see all. |
+| GET | `/api/assets` | No | List assets. Query: `page` (int, default 1), `q` (search). Public view returns only `is_public=1`; when logged in returns own assets (including hidden). Rate limit: 60/hour. |
+| PATCH | `/api/assets/<id>/visibility` | Yes | Set visibility. JSON body: `{ "is_public": true|false }`. Owner or admin only. |
 | POST | `/upload` | Yes | Upload one or more image files (multipart). Rate limit: 20/minute. |
 | POST | `/delete` | Yes | Bulk delete. JSON body: `{ "ids": [1, 2, ...] }`. Only own tenant/user assets; admins can delete any. Rate limit: 30/minute. |
 | GET | `/proxy_download?url=` | No | Proxy image download (URL must match WordPress host). Rate limit: 30/minute. |
@@ -81,12 +82,26 @@ Response (200):
       "created_at": "2025-01-01 12:00:00",
       "updated_at": "2025-01-01 12:00:00",
       "user_id": 1,
-      "tenant_id": 1
+      "tenant_id": 1,
+      "is_public": 1
     }
   ],
   "has_more": true
 }
 ```
+
+### PATCH /api/assets/<id>/visibility
+
+```
+PATCH /api/assets/1/visibility
+Content-Type: application/json
+X-CSRFToken: <csrf_token>
+X-Requested-With: XMLHttpRequest
+
+{ "is_public": false }
+```
+
+Response (200): `{ "id": 1, "is_public": false }`. Response (404): `{ "error": "Asset not found or access denied." }`.
 
 ### POST /delete
 

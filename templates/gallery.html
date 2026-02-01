@@ -66,6 +66,14 @@
                 <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
              </div>
         </div>
+        {% if current_user.is_authenticated %}
+        <button type="button" class="visibility-toggle absolute top-3 left-3 z-20 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-all border border-white/10" data-id="{{ asset.id }}" data-public="{{ 1 if (asset.is_public|default(1)) else 0 }}" onclick="event.stopPropagation(); toggleVisibility(this)" title="Toggle public visibility">
+            <i class="fa-solid {{ 'fa-eye' if (asset.is_public|default(1)) else 'fa-eye-slash' }}"></i>
+        </button>
+        {% if not (asset.is_public|default(1)) %}
+        <span class="absolute top-3 left-12 z-20 text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Hidden</span>
+        {% endif %}
+        {% endif %}
 
         <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
             <img src="{{ asset.url_thumbnail }}" 
@@ -215,6 +223,7 @@
 <!-- Config Injection -->
 <script>
     window.LuminaConfig = {
+        isAuthenticated: {{ 'true' if current_user.is_authenticated else 'false' }},
         initialAssets: [
             {% for asset in assets %}
             {
@@ -224,7 +233,8 @@
                 title: "{{ asset.title }}",
                 fileName: "{{ asset.file_name }}",
                 type: "{{ asset.mime_type }}",
-                date: "{{ asset.created_at }}"
+                date: "{{ asset.created_at }}",
+                isPublic: {{ 1 if (asset.is_public|default(1)) else 0 }}
             },
             {% endfor %}
         ],

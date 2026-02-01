@@ -127,6 +127,8 @@ def init_db():
             cursor.execute('ALTER TABLE gallery_assets ADD COLUMN user_id INTEGER REFERENCES users(id)')
         if 'tenant_id' not in columns:
             cursor.execute('ALTER TABLE gallery_assets ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)')
+        if 'is_public' not in columns:
+            cursor.execute('ALTER TABLE gallery_assets ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_wp_id ON gallery_assets(wp_media_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON gallery_assets(created_at);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_tenant ON gallery_assets(tenant_id);')
@@ -134,15 +136,15 @@ def init_db():
         conn.commit()
 
 def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id: int | None = None) -> None:
-    """Adds a new asset to the local database."""
+    """Adds a new asset to the local database. New assets are public by default."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute('''
                 INSERT INTO gallery_assets (
                     wp_media_id, title, file_name, mime_type,
-                    url_full, url_thumbnail, url_medium, user_id, tenant_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    url_full, url_thumbnail, url_medium, user_id, tenant_id, is_public
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ''', (
                 asset_data['wp_media_id'],
                 asset_data['title'],
@@ -167,17 +169,20 @@ def get_assets(
     search_query: str | None = None,
     tenant_id: int | None = None,
     user_id: int | None = None,
+    public_only: bool = False,
 ) -> dict[str, Any]:
     """
     Retrieves assets with pagination and optional search.
     When tenant_id or user_id is set, only assets for that tenant/user are returned.
+    When public_only is True, only assets with is_public=1 are returned (for public view).
     Returns dict: {'assets': list, 'has_more': bool}
     Uses Redis cache when available; invalidate on add/delete.
     """
     qhash = hashlib.sha256((search_query or '').encode()).hexdigest()[:16]
     tid = tenant_id or 0
     uid = user_id or 0
-    cache_key = f"{ASSETS_CACHE_KEY_PREFIX}{_cache_version()}:p{page}:q{qhash}:t{tid}:u{uid}"
+    pub = 1 if public_only else 0
+    cache_key = f"{ASSETS_CACHE_KEY_PREFIX}{_cache_version()}:p{page}:q{qhash}:t{tid}:u{uid}:pub{pub}"
     if redis_client:
         try:
             raw = redis_client.get(cache_key)
@@ -197,6 +202,8 @@ def get_assets(
     if user_id is not None:
         conditions.append('user_id = ?')
         params.append(user_id)
+    if public_only:
+        conditions.append('is_public = 1')
     if search_query:
         conditions.append("title LIKE ? ESCAPE '\\'")
         params.append(f'%{search_query}%')
@@ -260,6 +267,32 @@ def delete_assets(
         except Exception as e:
             logger.exception("Database error during delete: %s", e)
     return wp_ids
+
+
+def update_asset_visibility(
+    asset_id: int,
+    is_public: bool,
+    tenant_id: int | None = None,
+    user_id: int | None = None,
+) -> bool:
+    """
+    Update is_public for an asset. Only updates if the asset belongs to the given
+    tenant/user, or if both are None (admin). Returns True if a row was updated.
+    """
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        sql = 'UPDATE gallery_assets SET is_public = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        params: list[Any] = [1 if is_public else 0, asset_id]
+        if tenant_id is not None:
+            sql += ' AND tenant_id = ?'
+            params.append(tenant_id)
+        if user_id is not None:
+            sql += ' AND user_id = ?'
+            params.append(user_id)
+        cursor.execute(sql, tuple(params))
+        conn.commit()
+        _invalidate_assets_cache()
+        return cursor.rowcount > 0
 
 
 # --- Users ---

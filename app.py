@@ -430,21 +430,29 @@ def admin_delete_user(user_id: int):
 
 @app.route('/')
 def index():
-    """Render the initial gallery view (Page 1)."""
+    """Render the initial gallery view (Page 1). Public view shows only is_public assets."""
     tenant_id = get_current_tenant_id()
     user_id = get_current_user_id()
     from flask_login import current_user
+    public_only = not current_user.is_authenticated
     if current_user.is_authenticated and getattr(current_user, 'role', None) == 'admin':
         tenant_id = None
         user_id = None
-    result = AssetService.get_assets(page=1, per_page=20, tenant_id=tenant_id, user_id=user_id)
+        public_only = False
+    result = AssetService.get_assets(
+        page=1,
+        per_page=20,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        public_only=public_only,
+    )
     return render_template('gallery.html', assets=result['assets'], has_more=result['has_more'])
 
 
 @app.route('/api/assets')
 @limiter.limit('60 per hour')
 def get_assets_api():
-    """API for Infinite Scroll & Search. Filtered by tenant/user when logged in."""
+    """API for Infinite Scroll & Search. Public view returns only is_public assets."""
     try:
         page = request.args.get('page', 1, type=int)
         if page < 1:
@@ -453,20 +461,47 @@ def get_assets_api():
         tenant_id = get_current_tenant_id()
         user_id = get_current_user_id()
         from flask_login import current_user
+        public_only = not current_user.is_authenticated
         if current_user.is_authenticated and getattr(current_user, 'role', None) == 'admin':
             tenant_id = None
             user_id = None
+            public_only = False
         result = AssetService.get_assets(
             page=page,
             per_page=20,
             search_query=search_query or None,
             tenant_id=tenant_id,
             user_id=user_id,
+            public_only=public_only,
         )
         return jsonify(result)
     except Exception as e:
         logger.exception("get_assets_api failed: %s", e)
         return jsonify({'error': 'Failed to load assets.'}), 500
+
+
+@app.route('/api/assets/<int:asset_id>/visibility', methods=['PATCH'])
+@auth_login_required
+def update_asset_visibility(asset_id: int):
+    """Set visibility (show/hide from public). Owner or admin only."""
+    try:
+        validate_positive_id(asset_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    data = request.get_json(silent=True) or {}
+    is_public_raw = data.get('is_public')
+    if is_public_raw is None:
+        return jsonify({'error': 'Missing is_public'}), 400
+    is_public = bool(is_public_raw) if isinstance(is_public_raw, bool) else (is_public_raw in (1, '1', 'true', 'True'))
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    if getattr(current_user, 'role', None) == 'admin':
+        tenant_id = None
+        user_id = None
+    if database.update_asset_visibility(asset_id, is_public, tenant_id=tenant_id, user_id=user_id):
+        return jsonify({'id': asset_id, 'is_public': is_public})
+    return jsonify({'error': 'Asset not found or access denied.'}), 404
 
 @app.route('/proxy_download')
 @limiter.limit('30 per minute')
