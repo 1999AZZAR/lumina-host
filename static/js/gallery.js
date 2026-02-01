@@ -249,6 +249,7 @@ function openCreateAlbumModal() {
     document.getElementById('album-name-input').value = '';
     document.getElementById('album-desc-input').value = '';
     document.getElementById('album-public-input').checked = true;
+    document.getElementById('btn-delete-album').classList.add('hidden'); // Hide delete
     
     populateParentDropdown();
     
@@ -310,16 +311,15 @@ function editCurrentAlbum() {
     if(!album) return;
     
     editingAlbumId = album.id;
-    document.getElementById('album-modal-title').innerText = 'Edit Album';
+    document.getElementById('album-modal-title').innerText = 'Manage Album';
     document.getElementById('album-name-input').value = album.name;
     document.getElementById('album-desc-input').value = album.description || '';
     document.getElementById('album-public-input').checked = !!album.is_public;
+    document.getElementById('btn-delete-album').classList.remove('hidden'); // Show delete
     
     populateParentDropdown(album.id);
     // Set selected parent
     document.getElementById('album-parent-input').value = album.parent_id || '';
-    
-    toggleAlbumMenu(); // Close menu
     
     albumModal.classList.remove('hidden');
     void albumModal.offsetWidth;
@@ -327,13 +327,8 @@ function editCurrentAlbum() {
     document.getElementById('album-modal-content').classList.remove('scale-95');
 }
 
-function toggleAlbumMenu() {
-    const menu = document.getElementById('album-context-menu');
-    menu.classList.toggle('hidden');
-}
-
 function confirmDeleteAlbum() {
-    toggleAlbumMenu();
+    closeAlbumModal(); // Close management modal first
     showModal({
         title: 'Delete Album?',
         message: 'This will delete the album but keep the photos. Continue?',

@@ -73,18 +73,9 @@
                     <h1 id="page-title" class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 tracking-tight truncate">
                         Digital Assets
                     </h1>
-                    <button id="album-actions-btn" class="hidden w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 items-center justify-center text-slate-400 hover:text-white transition-colors" onclick="toggleAlbumMenu()">
-                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    <button id="album-actions-btn" class="hidden w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 items-center justify-center text-slate-400 hover:text-white transition-colors" onclick="editCurrentAlbum()" title="Manage Album">
+                        <i class="fa-solid fa-sliders text-sm"></i>
                     </button>
-                    <!-- Album Context Menu -->
-                    <div id="album-context-menu" class="hidden absolute top-32 left-64 z-50 glass-panel rounded-xl shadow-xl border border-white/10 flex flex-col py-1 w-40 overflow-hidden">
-                        <button onclick="editCurrentAlbum()" class="px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-2">
-                            <i class="fa-solid fa-pen text-xs"></i> Rename
-                        </button>
-                        <button onclick="confirmDeleteAlbum()" class="px-4 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-2">
-                            <i class="fa-solid fa-trash text-xs"></i> Delete
-                        </button>
-                    </div>
                 </div>
                 <p id="page-desc" class="text-slate-400 text-lg font-light flex items-center gap-2 justify-center md:justify-start truncate">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -215,9 +206,12 @@
             <p class="text-xs text-slate-500 px-2">Changing visibility updates all photos in this album.</p>
         </div>
 
-        <div class="flex gap-3 w-full">
-            <button onclick="closeAlbumModal()" class="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors border border-white/10">Cancel</button>
-            <button onclick="submitAlbum()" class="flex-1 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">Save</button>
+        <div class="flex items-center justify-between gap-3 w-full">
+            <button id="btn-delete-album" onclick="confirmDeleteAlbum()" class="hidden px-4 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-medium transition-colors border border-rose-500/20">Delete</button>
+            <div class="flex gap-3 flex-1 justify-end">
+                <button onclick="closeAlbumModal()" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors border border-white/10">Cancel</button>
+                <button onclick="submitAlbum()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">Save</button>
+            </div>
         </div>
     </div>
 </div>
