@@ -53,11 +53,14 @@ def main() -> None:
         row = cursor.fetchone()
         if not row:
             if not admin_password:
-                import getpass
-                admin_password = getpass.getpass(f"Set password for admin user '{admin_username}': ")
+                if sys.stdin.isatty():
+                    import getpass
+                    admin_password = getpass.getpass(f"Set password for admin user '{admin_username}': ")
+                
                 if not admin_password:
-                    print("Password required. Set ADMIN_PASSWORD in .env or run again and enter at prompt.")
-                    sys.exit(1)
+                    print("Skipping admin creation: ADMIN_PASSWORD not set and not interactive.")
+                    return # Exit migration without error, admin can be created later or via env var restart
+
             password_hash = hash_password(admin_password)
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash, role, tenant_id) VALUES (?, ?, ?, ?, ?)",
