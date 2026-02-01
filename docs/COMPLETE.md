@@ -26,12 +26,14 @@ Lumina Host is a decoupled image gallery: Flask serves the UI and API, SQLite ca
 
 Environment variables (see project root `example.env` and README):
 
-* **Flask** – FLASK_SECRET_KEY (required in production).
-* **WordPress** – WP_API_URL, WP_USER, WP_PASS (optional; omit for mock mode).
-* **Redis** – REDIS_URL (optional cache), RATELIMIT_STORAGE_URL (optional; production rate limits).
-* **AMT** – ENABLE_REGISTRATION, API_TOKEN_EXPIRY_DAYS, ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD. Default admin is created at startup when ADMIN_PASSWORD is set. Username and email must be valid (e.g. alphanumeric username, valid or @localhost email).
+| Category | Variables | Notes |
+|----------|-----------|-------|
+| Flask | FLASK_SECRET_KEY | Required in production. |
+| WordPress | WP_API_URL, WP_USER, WP_PASS | Optional; omit for mock mode. |
+| Redis | REDIS_URL, RATELIMIT_STORAGE_URL | REDIS_URL: optional cache. RATELIMIT_STORAGE_URL: optional; use in production for rate limits. |
+| AMT | ENABLE_REGISTRATION, API_TOKEN_EXPIRY_DAYS, ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD | Default admin is created at startup when ADMIN_PASSWORD is set. Username and email must be valid (alphanumeric/underscore username, valid or @localhost email). |
 
-Production: use HTTPS, set SESSION_COOKIE_SECURE (automatic when not debug), set RATELIMIT_STORAGE_URL to Redis, and use a strong ADMIN_PASSWORD.
+**Production:** Use HTTPS, set SESSION_COOKIE_SECURE (automatic when not debug), set RATELIMIT_STORAGE_URL to Redis, and use a strong ADMIN_PASSWORD.
 
 ## Architecture (short)
 
