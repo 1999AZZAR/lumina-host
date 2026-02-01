@@ -1,6 +1,11 @@
 """Request and input validation for Lumina Host."""
 
 import re
+import unicodedata
+import time
+import random
+import string
+from datetime import datetime
 from typing import Any
 
 # Max length for search query (chars)
@@ -23,6 +28,28 @@ EXTENSION_MIME: dict[str, set[str]] = {
 }
 # When extension is allowed but MIME is generic/empty, still accept (extension is primary check)
 GENERIC_MIMETYPES = frozenset({'application/octet-stream', 'application/unknown', ''})
+
+
+def normalize_filename(filename: str | None) -> str:
+    """
+    Generate a standardized filename using the scheme: MMDDYY_HHMM_WXYZ.ext
+    - MMDDYY: Current date (Month, Day, Year)
+    - HHMM: Current time (Hour, Minute)
+    - WXYZ: 4-character random alphanumeric string
+    - ext: Original file extension (normalized to lowercase)
+    """
+    # Get extension from original filename
+    if filename and '.' in filename:
+        ext = '.' + filename.rsplit('.', 1)[-1].lower()
+    else:
+        ext = '.jpg' # Fallback for safety, though validators.py usually prevents this
+
+    now = datetime.now()
+    date_part = now.strftime("%m%d%y") # MMDDYY
+    time_part = now.strftime("%H%M")   # HHMM
+    random_part = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+
+    return f"{date_part}_{time_part}_{random_part}{ext}"
 
 
 def validate_username(s: str | None) -> str:

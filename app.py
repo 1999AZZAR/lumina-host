@@ -25,6 +25,7 @@ from validators import (
     validate_email_for_db,
     validate_password_strength,
     validate_positive_id,
+    normalize_filename,
 )
 
 # Load environment variables
@@ -581,7 +582,9 @@ def upload_file():
     for file in files:
         if file and allowed_file(file.filename) and validate_file_extension_and_mime(file.filename, file.content_type):
             try:
-                valid.append((secure_filename(file.filename), file.read(), file.content_type or 'application/octet-stream'))
+                # Normalize filename to ensure safe ASCII for WP compatibility
+                safe_name = secure_filename(normalize_filename(file.filename))
+                valid.append((safe_name, file.read(), file.content_type or 'application/octet-stream'))
             except Exception as e:
                 logger.warning("Failed to read file %s: %s", file.filename, e)
     if not valid:
