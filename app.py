@@ -31,8 +31,8 @@ from validators import (
     validate_album_name,
 )
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (Docker env vars take precedence)
+load_dotenv(override=False)
 
 _config = get_config()
 logging.basicConfig(

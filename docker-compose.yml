@@ -11,6 +11,7 @@ services:
       - gallery_data:/app/data
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - RATELIMIT_STORAGE_URL=redis://redis:6379/1
       - DB_PATH=/app/data/gallery.db
     env_file:
       - .env

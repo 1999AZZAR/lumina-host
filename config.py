@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env but don't override existing environment variables (e.g., from Docker Compose)
+load_dotenv(override=False)
 
 
 @dataclass(frozen=True)
