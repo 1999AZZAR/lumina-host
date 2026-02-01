@@ -226,18 +226,26 @@ let editingAlbumId = null;
 
 function populateParentDropdown(excludeId = null) {
     const select = document.getElementById('album-parent-input');
+    if (!select) return;
+    
     select.innerHTML = '<option value="">No Parent (Root)</option>';
     
-    const tree = buildAlbumTree(state.albums);
+    // Ensure we have a tree. If state.albums is empty, tree is empty.
+    const tree = buildAlbumTree(state.albums || []);
     
     function addOption(node, level) {
-        if (node.id === excludeId) return; // Can't be child of self
-        const prefix = '&nbsp;'.repeat(level * 4) + (level > 0 ? '└ ' : '');
+        if (node.id === excludeId) return; // Can't be child of self (or self)
+        
+        // Use dashes for visual hierarchy in select, simpler than &nbsp;
+        const prefix = level > 0 ? '— '.repeat(level) + ' ' : '';
         const option = document.createElement('option');
         option.value = node.id;
-        option.innerHTML = prefix + node.name;
+        option.textContent = prefix + node.name; // textContent handles escaping
         select.appendChild(option);
-        if (node.children) node.children.forEach(child => addOption(child, level + 1));
+        
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(child => addOption(child, level + 1));
+        }
     }
     
     tree.forEach(root => addOption(root, 0));
@@ -245,32 +253,54 @@ function populateParentDropdown(excludeId = null) {
 
 function openCreateAlbumModal() {
     editingAlbumId = null;
-    document.getElementById('album-modal-title').innerText = 'New Album';
-    document.getElementById('album-name-input').value = '';
-    document.getElementById('album-desc-input').value = '';
-    document.getElementById('album-public-input').checked = true;
-    document.getElementById('btn-delete-album').classList.add('hidden'); // Hide delete
+    const titleEl = document.getElementById('album-modal-title');
+    if(titleEl) titleEl.innerText = 'New Album';
+    
+    const nameIn = document.getElementById('album-name-input');
+    if(nameIn) nameIn.value = '';
+    
+    const descIn = document.getElementById('album-desc-input');
+    if(descIn) descIn.value = '';
+    
+    const pubIn = document.getElementById('album-public-input');
+    if(pubIn) pubIn.checked = true;
+    
+    const delBtn = document.getElementById('btn-delete-album');
+    if(delBtn) delBtn.classList.add('hidden'); // Hide delete
     
     populateParentDropdown();
     
-    albumModal.classList.remove('hidden');
-    void albumModal.offsetWidth;
-    albumModal.classList.remove('opacity-0');
-    document.getElementById('album-modal-content').classList.remove('scale-95');
+    if(albumModal) {
+        albumModal.classList.remove('hidden');
+        // Force reflow
+        void albumModal.offsetWidth;
+        albumModal.classList.remove('opacity-0');
+        const content = document.getElementById('album-modal-content');
+        if(content) content.classList.remove('scale-95');
+    }
 }
 
 function closeAlbumModal() {
+    if(!albumModal) return;
     albumModal.classList.add('opacity-0');
-    document.getElementById('album-modal-content').classList.add('scale-95');
+    const content = document.getElementById('album-modal-content');
+    if(content) content.classList.add('scale-95');
     setTimeout(() => albumModal.classList.add('hidden'), 300);
 }
 
 async function submitAlbum() {
-    const name = document.getElementById('album-name-input').value.trim();
-    const description = document.getElementById('album-desc-input').value.trim();
-    const parentIdVal = document.getElementById('album-parent-input').value;
+    const nameInput = document.getElementById('album-name-input');
+    const name = nameInput ? nameInput.value.trim() : '';
+    
+    const descInput = document.getElementById('album-desc-input');
+    const description = descInput ? descInput.value.trim() : '';
+    
+    const parentInput = document.getElementById('album-parent-input');
+    const parentIdVal = parentInput ? parentInput.value : '';
     const parent_id = parentIdVal ? parseInt(parentIdVal) : null;
-    const is_public = document.getElementById('album-public-input').checked;
+    
+    const pubInput = document.getElementById('album-public-input');
+    const is_public = pubInput ? pubInput.checked : true;
 
     if (!name) return alert("Name is required");
     
@@ -289,13 +319,11 @@ async function submitAlbum() {
         if(handleAuthResponse(res, data)) return;
         if(res.ok) {
             closeAlbumModal();
-            fetchAlbums(); // Refresh list
+            await fetchAlbums(); // Refresh list and wait
             if(editingAlbumId && state.currentAlbumId === editingAlbumId) {
                 // Update header immediately if viewing edited album
-                document.getElementById('page-title').innerText = name;
-                // Description and visibility updates require data reload or manual DOM patch,
-                // but switchView(current) or just letting fetchAlbums handle sidebar is mostly enough.
-                // We'll reload the view to be safe/consistent.
+                const titleEl = document.getElementById('page-title');
+                if(titleEl) titleEl.innerText = name;
                 switchView(state.currentAlbumId);
             }
         } else {
@@ -311,20 +339,34 @@ function editCurrentAlbum() {
     if(!album) return;
     
     editingAlbumId = album.id;
-    document.getElementById('album-modal-title').innerText = 'Manage Album';
-    document.getElementById('album-name-input').value = album.name;
-    document.getElementById('album-desc-input').value = album.description || '';
-    document.getElementById('album-public-input').checked = !!album.is_public;
-    document.getElementById('btn-delete-album').classList.remove('hidden'); // Show delete
+    
+    const titleEl = document.getElementById('album-modal-title');
+    if(titleEl) titleEl.innerText = 'Manage Album';
+    
+    const nameIn = document.getElementById('album-name-input');
+    if(nameIn) nameIn.value = album.name;
+    
+    const descIn = document.getElementById('album-desc-input');
+    if(descIn) descIn.value = album.description || '';
+    
+    const pubIn = document.getElementById('album-public-input');
+    if(pubIn) pubIn.checked = !!album.is_public;
+    
+    const delBtn = document.getElementById('btn-delete-album');
+    if(delBtn) delBtn.classList.remove('hidden'); // Show delete
     
     populateParentDropdown(album.id);
     // Set selected parent
-    document.getElementById('album-parent-input').value = album.parent_id || '';
+    const parentIn = document.getElementById('album-parent-input');
+    if(parentIn) parentIn.value = album.parent_id || '';
     
-    albumModal.classList.remove('hidden');
-    void albumModal.offsetWidth;
-    albumModal.classList.remove('opacity-0');
-    document.getElementById('album-modal-content').classList.remove('scale-95');
+    if(albumModal) {
+        albumModal.classList.remove('hidden');
+        void albumModal.offsetWidth;
+        albumModal.classList.remove('opacity-0');
+        const content = document.getElementById('album-modal-content');
+        if(content) content.classList.remove('scale-95');
+    }
 }
 
 function confirmDeleteAlbum() {
