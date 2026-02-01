@@ -60,7 +60,7 @@ def optimize_image(file_bytes: bytes, filename: str, mimetype: str) -> bytes:
         # Resize if too large (max 2560px)
         max_size = 2560
         if max(img.size) > max_size:
-            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            img.thumbnail((max_size, max_size), Image.Resampling.BICUBIC)
 
         # Convert to RGB if needed (for JPEG)
         output_format = img.format or ('JPEG' if mimetype == 'image/jpeg' else 'PNG')
