@@ -165,8 +165,18 @@
         {% endif %}
     </aside>
 
-    <!-- Main Grid -->
+    <!-- Main Content Area -->
     <div class="flex-1 min-w-0">
+        <!-- Page Header -->
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h1 id="page-title" class="text-2xl font-bold text-white mb-1">Digital Assets</h1>
+                <p id="page-desc" class="text-sm text-slate-400">Browse your uploaded media</p>
+            </div>
+            <div id="album-actions-btn" class="hidden">
+                <!-- Album actions injected here dynamically -->
+            </div>
+        </div>
 
         <!-- ASSETS GRID -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
@@ -385,7 +395,7 @@
                         fileName: "{{ asset.file_name }}",
                             type: "{{ asset.mime_type }}",
                                 date: "{{ asset.created_at }}",
-                                    isPublic: { { 1 if (asset.is_public |default (1)) else 0 } }
+                                    isPublic: { { 1 if (asset.is_public | default (1)) else 0 } }
     },
     {% endfor %}
         ],

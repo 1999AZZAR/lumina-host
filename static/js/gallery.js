@@ -205,19 +205,19 @@ async function switchView(albumId) {
 
     if (albumId) {
         const album = state.albums.find(a => a.id === albumId);
-        titleEl.innerText = album ? album.name : 'Album';
+        if (titleEl) titleEl.innerText = album ? album.name : 'Album';
 
         let meta = '';
         if (album) {
             meta = album.description ? `<span class="mr-3">${album.description}</span>` : '<span class="italic opacity-50 mr-3">No description</span>';
             if (!album.is_public) meta += '<span class="text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Private</span>';
         }
-        descEl.innerHTML = meta;
+        if (descEl) descEl.innerHTML = meta;
 
         if (actionBtn) { actionBtn.classList.remove('hidden'); actionBtn.classList.add('flex'); }
     } else {
-        titleEl.innerText = 'Digital Assets';
-        descEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Securely hosted on WordPress CDN.</span>';
+        if (titleEl) titleEl.innerText = 'Digital Assets';
+        if (descEl) descEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Securely hosted on WordPress CDN.</span>';
         if (actionBtn) { actionBtn.classList.add('hidden'); actionBtn.classList.remove('flex'); }
     }
 
