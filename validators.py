@@ -20,11 +20,15 @@ MAX_ID = 2**31 - 1
 # MIME types allowed per extension (subset; client can lie so we only sanity-check)
 # Include common variants (e.g. image/jpg) and allow octet-stream when extension is valid (mobile often sends that)
 EXTENSION_MIME: dict[str, set[str]] = {
-    'png': {'image/png'},
-    'jpg': {'image/jpeg', 'image/jpg', 'image/pjpeg'},
-    'jpeg': {'image/jpeg', 'image/jpg', 'image/pjpeg'},
+    'png': {'image/png', 'image/x-png'},
+    'jpg': {'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/x-citrix-jpeg'},
+    'jpeg': {'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/x-citrix-jpeg'},
     'gif': {'image/gif'},
-    'webp': {'image/webp'},
+    'webp': {'image/webp', 'image/x-webp'},
+    'bmp': {'image/bmp', 'image/x-bmp', 'image/x-ms-bmp'},
+    'tiff': {'image/tiff', 'image/x-tiff'},
+    'ico': {'image/x-icon', 'image/vnd.microsoft.icon', 'image/ico'},
+    'svg': {'image/svg+xml'},
 }
 # When extension is allowed but MIME is generic/empty, still accept (extension is primary check)
 GENERIC_MIMETYPES = frozenset({'application/octet-stream', 'application/unknown', ''})

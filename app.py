@@ -43,6 +43,11 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
+
+# Trust X-Forwarded-* headers from reverse proxies (Cloudflare Tunnel)
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 app.secret_key = resolve_secret_key(_config)
 app.config['MAX_CONTENT_LENGTH'] = _config.max_content_length_bytes
 app.config['SESSION_COOKIE_HTTPONLY'] = True

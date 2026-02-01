@@ -42,7 +42,7 @@ class Config:
     )
 
     # Upload
-    allowed_extensions: frozenset[str] = frozenset({'png', 'jpg', 'jpeg', 'gif', 'webp'})
+    allowed_extensions: frozenset[str] = frozenset({'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff', 'ico', 'svg'})
 
     # AMT
     enable_registration: bool = field(

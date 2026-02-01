@@ -49,7 +49,7 @@ def optimize_image(file_bytes: bytes, filename: str, mimetype: str) -> bytes:
     Optimize image for web: resize large images, strip metadata, and compress.
     Returns original bytes if optimization fails or is not an image.
     """
-    if not mimetype.startswith('image/'):
+    if not mimetype.startswith('image/') or 'svg' in mimetype:
         return file_bytes
 
     try:
@@ -63,16 +63,31 @@ def optimize_image(file_bytes: bytes, filename: str, mimetype: str) -> bytes:
         if max(img.size) > max_size:
             img.thumbnail((max_size, max_size), Image.Resampling.BICUBIC)
 
-        # Convert to RGB if needed (for JPEG)
-        output_format = img.format or ('JPEG' if mimetype == 'image/jpeg' else 'PNG')
+        # Determine output format
+        orig_format = (img.format or '').upper()
+        # Convert BMP/TIFF/ICO to PNG for web compatibility
+        if orig_format in ('BMP', 'TIFF', 'ICO', 'DIB'):
+            output_format = 'PNG'
+        elif mimetype == 'image/jpeg' or orig_format == 'JPEG':
+            output_format = 'JPEG'
+        elif mimetype == 'image/webp' or orig_format == 'WEBP':
+            output_format = 'WEBP'
+        else:
+            # Default to PNG for transparency support (GIF, PNG, etc)
+            output_format = 'PNG'
 
+        # Convert to RGB if saving as JPEG (handled automatically for others usually, but safety first)
         if output_format == 'JPEG' and img.mode != 'RGB':
             img = img.convert('RGB')
-
+        
         buffer = io.BytesIO()
         # Optimize and save
         save_args = {'optimize': True}
         if output_format == 'JPEG':
+            save_args['quality'] = 85
+        
+        # WebP optimization
+        if output_format == 'WEBP':
             save_args['quality'] = 85
 
         img.save(buffer, format=output_format, **save_args)
