@@ -31,94 +31,87 @@
 {% endblock %}
 
 {% block content %}
-<!-- Header -->
-<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
-    <div class="text-center md:text-left">
-        <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 mb-2 tracking-tight">
-            Digital Assets
-        </h1>
-        <p class="text-slate-400 text-lg font-light flex items-center gap-2 justify-center md:justify-start">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Securely hosted on WordPress CDN.
-        </p>
-    </div>
-    
-    <!-- Mobile Search -->
-    <div class="md:hidden w-full">
-        <div class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 transition-colors">
-            <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
-            <input type="text" placeholder="Search..." class="bg-transparent border-none outline-none text-white placeholder-slate-500 ml-3 w-full"
-                   oninput="handleSearch(this.value)">
+<div class="flex flex-col md:flex-row gap-8 min-h-[80vh]">
+    <!-- Sidebar (Albums) -->
+    <aside class="w-full md:w-64 flex-shrink-0 flex flex-col gap-6">
+        <div class="glass-panel p-5 rounded-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white tracking-wide">Library</h2>
+            </div>
+            <nav class="flex flex-col gap-1">
+                <button onclick="switchView(null)" id="nav-all" class="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-white/10 text-white font-medium shadow-inner border border-white/5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i class="fa-regular fa-images"></i>
+                    </div>
+                    <span>All Photos</span>
+                </button>
+            </nav>
         </div>
-    </div>
-</header>
 
-<!-- ASSETS GRID -->
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6" id="assets-grid">
-    {% for asset in assets %}
-    {% set current_index = loop.index0 %}
-    <div class="asset-card group relative glass-panel rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-500 hover:scale-[1.02] hover:bg-white/10 cursor-pointer animate-[fadeIn_0.5s_ease-out] pointer-events-auto"
-         data-id="{{ asset.id }}"
-         onclick="handleAssetClick(this, {{ current_index }})">
-        
-        <div class="selection-overlay absolute top-3 right-3 z-20 hidden">
-             <div class="w-6 h-6 rounded-full border-2 border-white/50 bg-black/40 flex items-center justify-center transition-all checkbox-circle">
-                <i class="fa-solid fa-check text-white text-xs opacity-0 scale-0 transition-all"></i>
-             </div>
-        </div>
         {% if current_user.is_authenticated %}
-        <button type="button" class="visibility-toggle absolute top-3 left-3 z-20 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-all border border-white/10" data-id="{{ asset.id }}" data-public="{{ 1 if (asset.is_public|default(1)) else 0 }}" onclick="event.stopPropagation(); toggleVisibility(this)" title="Toggle public visibility">
-            <i class="fa-solid {{ 'fa-eye' if (asset.is_public|default(1)) else 'fa-eye-slash' }}"></i>
-        </button>
-        {% if not (asset.is_public|default(1)) %}
-        <span class="absolute top-3 left-12 z-20 text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Hidden</span>
-        {% endif %}
-        {% endif %}
-
-        <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
-            <img src="{{ asset.url_thumbnail }}" 
-                 alt="{{ asset.title }}" 
-                 loading="lazy"
-                 class="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
-            <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
+        <div class="glass-panel p-5 rounded-2xl flex-1">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white tracking-wide">Albums</h2>
+                <button onclick="openCreateAlbumModal()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white" title="New Album">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                </button>
+            </div>
+            <nav id="album-list" class="flex flex-col gap-1 max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar">
+                <!-- Albums injected here -->
+                <div class="text-center py-8 text-slate-500 text-sm">Loading...</div>
+            </nav>
         </div>
-        
-        <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
-            <h3 class="text-white font-medium truncate text-lg tracking-wide">{{ asset.title }}</h3>
-            <div class="flex justify-between items-center mt-3">
-                <span class="text-[10px] font-bold tracking-wider text-slate-900 bg-emerald-400 px-2 py-1 rounded shadow-lg shadow-emerald-400/20">
-                    {{ asset.mime_type.split('/')[-1] | upper }}
-                </span>
-                <div class="flex gap-2">
-                    <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
-                        <i class="fa-solid fa-expand text-xs"></i>
-                    </span>
+        {% endif %}
+    </aside>
+
+    <!-- Main Grid -->
+    <div class="flex-1 min-w-0">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div class="text-center md:text-left flex-1 min-w-0">
+                <div class="flex items-center gap-3 justify-center md:justify-start mb-2">
+                    <h1 id="page-title" class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 tracking-tight truncate">
+                        Digital Assets
+                    </h1>
+                    <button id="album-actions-btn" class="hidden w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 items-center justify-center text-slate-400 hover:text-white transition-colors" onclick="toggleAlbumMenu()">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <!-- Album Context Menu -->
+                    <div id="album-context-menu" class="hidden absolute top-32 left-64 z-50 glass-panel rounded-xl shadow-xl border border-white/10 flex flex-col py-1 w-40 overflow-hidden">
+                        <button onclick="editCurrentAlbum()" class="px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-pen text-xs"></i> Rename
+                        </button>
+                        <button onclick="confirmDeleteAlbum()" class="px-4 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-trash text-xs"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                <p id="page-desc" class="text-slate-400 text-lg font-light flex items-center gap-2 justify-center md:justify-start truncate">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Securely hosted on WordPress CDN.</span>
+                </p>
+            </div>
+            
+            <!-- Mobile Search -->
+            <div class="md:hidden w-full">
+                <div class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 transition-colors">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                    <input type="text" placeholder="Search..." class="bg-transparent border-none outline-none text-white placeholder-slate-500 ml-3 w-full"
+                           oninput="handleSearch(this.value)">
                 </div>
             </div>
-        </div>
-    </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="col-span-full flex flex-col items-center justify-center py-24 text-slate-500 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
-        <div class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 animate-float">
-            <i class="fa-regular fa-images text-4xl text-emerald-400/50"></i>
-        </div>
-        <h3 class="text-xl font-medium text-slate-300">No assets found</h3>
-        <p class="text-sm opacity-60 mt-2 max-w-sm text-center">Your secure gallery is empty.{% if current_user.is_authenticated %} Upload your first image to get started.{% endif %}</p>
-        {% if current_user.is_authenticated %}
-        <div class="flex gap-4 mt-8">
-             <button onclick="document.getElementById('uploadInput').click()" class="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-full transition-all shadow-lg shadow-emerald-500/20">
-                Upload File
-            </button>
-        </div>
-        {% endif %}
-    </div>
-    {% endfor %}
-</div>
+        </header>
 
-<!-- Sentinel -->
-<div id="sentinel" class="h-20 w-full flex items-center justify-center mt-8 opacity-0 transition-opacity duration-300">
-    <div class="w-8 h-8 border-4 border-white/10 border-t-emerald-400 rounded-full animate-spin"></div>
+        <!-- ASSETS GRID -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6" id="assets-grid">
+            <!-- Assets injected here -->
+        </div>
+
+        <!-- Sentinel -->
+        <div id="sentinel" class="h-20 w-full flex items-center justify-center mt-8 opacity-0 transition-opacity duration-300">
+            <div class="w-8 h-8 border-4 border-white/10 border-t-emerald-400 rounded-full animate-spin"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Lightbox Modal -->
@@ -165,13 +158,19 @@
     <div class="h-4 w-px bg-white/20"></div>
     
     <button onclick="downloadSelected()" class="text-emerald-400 hover:text-emerald-300 font-medium text-sm flex items-center gap-2 transition-colors">
-        <i class="fa-solid fa-download"></i> Download
+        <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Download</span>
     </button>
     
     <div class="h-4 w-px bg-white/20"></div>
 
+    <button onclick="openMoveModal()" class="text-indigo-400 hover:text-indigo-300 font-medium text-sm flex items-center gap-2 transition-colors">
+        <i class="fa-regular fa-folder"></i> <span class="hidden sm:inline">Move</span>
+    </button>
+
+    <div class="h-4 w-px bg-white/20"></div>
+
     <button onclick="confirmDelete()" class="text-rose-400 hover:text-rose-300 font-medium text-sm flex items-center gap-2 transition-colors">
-        <i class="fa-regular fa-trash-can"></i> Delete
+        <i class="fa-regular fa-trash-can"></i> <span class="hidden sm:inline">Delete</span>
     </button>
 </div>
 
@@ -191,6 +190,31 @@
 </div>
 
 {% if current_user.is_authenticated %}
+<!-- Create/Edit Album Modal -->
+<div id="album-modal" class="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="glass-panel p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="album-modal-content">
+        <h3 id="album-modal-title" class="text-xl font-semibold text-white mb-4">New Album</h3>
+        <input type="text" id="album-name-input" placeholder="Album Name" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 mb-4">
+        <div class="flex gap-3 w-full">
+            <button onclick="closeAlbumModal()" class="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors border border-white/10">Cancel</button>
+            <button onclick="submitAlbum()" class="flex-1 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Move Assets Modal -->
+<div id="move-modal" class="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="glass-panel p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300" id="move-modal-content">
+        <h3 class="text-xl font-semibold text-white mb-4">Move to Album</h3>
+        <div id="move-album-list" class="flex flex-col gap-2 max-h-60 overflow-y-auto mb-4 custom-scrollbar">
+            <!-- List injected via JS -->
+        </div>
+        <div class="flex gap-3 w-full">
+            <button onclick="closeMoveModal()" class="flex-1 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors border border-white/10">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="absolute w-0 h-0 overflow-hidden opacity-0 pointer-events-none">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="file" name="file" id="uploadInput" accept="image/*" multiple onchange="submitUpload()">
@@ -242,5 +266,5 @@
     };
 </script>
 <!-- Gallery Logic -->
-<script src="{{ url_for('static', filename='js/gallery.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/gallery.js') }}?v=3"></script>
 {% endblock %}

@@ -55,6 +55,7 @@ function getDownloadFilename(asset) {
 // State
 let state = {
     galleryData: [],
+    albums: [],
     currentPage: 1,
     hasMore: false,
     isLoading: false,
@@ -64,7 +65,8 @@ let state = {
     isSelectionMode: false,
     selectedIds: new Set(),
     touchStartX: 0,
-    touchStartY: 0
+    touchStartY: 0,
+    currentAlbumId: null // null = all photos
 };
 
 // --- Initialization ---
@@ -72,10 +74,204 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.LuminaConfig) {
         state.galleryData = window.LuminaConfig.initialAssets || [];
         state.hasMore = window.LuminaConfig.hasMore || false;
+        if(window.LuminaConfig.isAuthenticated) fetchAlbums();
     }
     initInfiniteScroll();
     initGlobalListeners();
 });
+
+// --- Albums ---
+async function fetchAlbums() {
+    try {
+        const res = await fetch('/api/albums');
+        const data = await res.json();
+        if (handleAuthResponse(res, data)) return;
+        state.albums = data.albums || [];
+        renderAlbumsList();
+    } catch (e) { console.error("Failed to fetch albums", e); }
+}
+
+function renderAlbumsList() {
+    const container = document.getElementById('album-list');
+    const moveContainer = document.getElementById('move-album-list');
+    if (!container) return;
+    
+    container.innerHTML = state.albums.length ? '' : '<div class="text-center py-4 text-slate-500 text-xs">No albums yet</div>';
+    
+    // Render Sidebar List
+    state.albums.forEach(album => {
+        const isActive = state.currentAlbumId === album.id;
+        const el = document.createElement('button');
+        el.className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${isActive ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
+        el.onclick = () => switchView(album.id);
+        el.innerHTML = `
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <i class="fa-regular fa-folder"></i>
+            </div>
+            <span class="truncate">${album.name}</span>
+        `;
+        container.appendChild(el);
+    });
+
+    // Render Move Modal List
+    if (moveContainer) {
+        moveContainer.innerHTML = '';
+        // Option to remove from album
+        moveContainer.innerHTML = `
+            <button onclick="submitMove(null)" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-left w-full">
+                <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-400">
+                    <i class="fa-solid fa-minus"></i>
+                </div>
+                <span>Remove from Album</span>
+            </button>
+        `;
+        
+        state.albums.forEach(album => {
+            if (album.id === state.currentAlbumId) return; // Don't show current album
+            const el = document.createElement('button');
+            el.className = 'flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-left w-full';
+            el.onclick = () => submitMove(album.id);
+            el.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <i class="fa-regular fa-folder"></i>
+                </div>
+                <span class="truncate">${album.name}</span>
+            `;
+            moveContainer.appendChild(el);
+        });
+    }
+}
+
+async function switchView(albumId) {
+    state.currentAlbumId = albumId;
+    state.currentPage = 0;
+    state.galleryData = [];
+    state.hasMore = true;
+    state.searchQuery = '';
+    document.getElementById('searchInput').value = ''; // Reset search
+    elements.grid.innerHTML = '';
+    
+    // Update UI Active State
+    document.getElementById('nav-all').className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${!albumId ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
+    renderAlbumsList(); // Re-render to update active class in sidebar
+
+    // Update Header Title
+    const titleEl = document.getElementById('page-title');
+    const descEl = document.getElementById('page-desc');
+    const actionBtn = document.getElementById('album-actions-btn');
+    
+    if (albumId) {
+        const album = state.albums.find(a => a.id === albumId);
+        titleEl.innerText = album ? album.name : 'Album';
+        descEl.innerHTML = album && album.description ? album.description : '<span class="italic opacity-50">No description</span>';
+        if(actionBtn) actionBtn.classList.remove('hidden');
+        if(actionBtn) actionBtn.classList.add('flex');
+    } else {
+        titleEl.innerText = 'Digital Assets';
+        descEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Securely hosted on WordPress CDN.</span>';
+        if(actionBtn) actionBtn.classList.add('hidden');
+        if(actionBtn) actionBtn.classList.remove('flex');
+    }
+
+    if(elements.sentinel) elements.sentinel.style.display = 'flex';
+    await loadMore();
+}
+
+// --- Album CRUD ---
+const albumModal = document.getElementById('album-modal');
+let editingAlbumId = null;
+
+function openCreateAlbumModal() {
+    editingAlbumId = null;
+    document.getElementById('album-modal-title').innerText = 'New Album';
+    document.getElementById('album-name-input').value = '';
+    albumModal.classList.remove('hidden');
+    void albumModal.offsetWidth;
+    albumModal.classList.remove('opacity-0');
+    document.getElementById('album-modal-content').classList.remove('scale-95');
+}
+
+function closeAlbumModal() {
+    albumModal.classList.add('opacity-0');
+    document.getElementById('album-modal-content').classList.add('scale-95');
+    setTimeout(() => albumModal.classList.add('hidden'), 300);
+}
+
+async function submitAlbum() {
+    const name = document.getElementById('album-name-input').value.trim();
+    if (!name) return alert("Name is required");
+    
+    toggleLoader(true);
+    try {
+        const url = editingAlbumId ? `/api/albums/${editingAlbumId}` : '/api/albums';
+        const method = editingAlbumId ? 'PATCH' : 'POST';
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
+            body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if(handleAuthResponse(res, data)) return;
+        if(res.ok) {
+            closeAlbumModal();
+            fetchAlbums(); // Refresh list
+            if(editingAlbumId && state.currentAlbumId === editingAlbumId) {
+                // Update title if we are inside the edited album
+                document.getElementById('page-title').innerText = name;
+            }
+        } else {
+            alert(data.error || 'Failed to save album');
+        }
+    } catch(e) { console.error(e); alert('Error saving album'); }
+    finally { toggleLoader(false); }
+}
+
+function editCurrentAlbum() {
+    if(!state.currentAlbumId) return;
+    const album = state.albums.find(a => a.id === state.currentAlbumId);
+    if(!album) return;
+    
+    editingAlbumId = album.id;
+    document.getElementById('album-modal-title').innerText = 'Edit Album';
+    document.getElementById('album-name-input').value = album.name;
+    toggleAlbumMenu(); // Close menu
+    
+    albumModal.classList.remove('hidden');
+    void albumModal.offsetWidth;
+    albumModal.classList.remove('opacity-0');
+    document.getElementById('album-modal-content').classList.remove('scale-95');
+}
+
+function toggleAlbumMenu() {
+    const menu = document.getElementById('album-context-menu');
+    menu.classList.toggle('hidden');
+}
+
+function confirmDeleteAlbum() {
+    toggleAlbumMenu();
+    showModal({
+        title: 'Delete Album?',
+        message: 'This will delete the album but keep the photos. Continue?',
+        color: 'rose',
+        icon: 'fa-trash',
+        onConfirm: async () => {
+            toggleLoader(true);
+            try {
+                const res = await fetch(`/api/albums/${state.currentAlbumId}`, {
+                    method: 'DELETE',
+                    headers: {'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'}
+                });
+                if(res.ok) {
+                    await fetchAlbums();
+                    switchView(null); // Go back to all photos
+                } else {
+                    alert('Failed to delete album');
+                }
+            } catch(e) { alert('Error deleting album'); }
+            finally { toggleLoader(false); }
+        }
+    });
+}
 
 // --- Infinite Scroll ---
 function initInfiniteScroll() {
@@ -90,7 +286,10 @@ async function loadMore() {
     state.isLoading = true;
     if(elements.sentinel) elements.sentinel.classList.remove('opacity-0');
     try {
-        const res = await fetch(`/api/assets?page=${state.currentPage + 1}&q=${encodeURIComponent(state.searchQuery)}`);
+        let url = `/api/assets?page=${state.currentPage + 1}&q=${encodeURIComponent(state.searchQuery)}`;
+        if (state.currentAlbumId) url += `&album_id=${state.currentAlbumId}`;
+        
+        const res = await fetch(url);
         const data = await res.json();
         if (handleAuthResponse(res, data)) return;
         if (data.assets.length > 0) {
@@ -118,6 +317,64 @@ async function loadMore() {
         state.isLoading = false;
         if(elements.sentinel) elements.sentinel.classList.add('opacity-0');
     }
+}
+
+// --- Move Assets ---
+const moveModal = document.getElementById('move-modal');
+
+function openMoveModal() {
+    if (state.selectedIds.size === 0) return;
+    renderAlbumsList(); // Refresh list inside modal
+    moveModal.classList.remove('hidden');
+    void moveModal.offsetWidth;
+    moveModal.classList.remove('opacity-0');
+    document.getElementById('move-modal-content').classList.remove('scale-95');
+}
+
+function closeMoveModal() {
+    moveModal.classList.add('opacity-0');
+    document.getElementById('move-modal-content').classList.add('scale-95');
+    setTimeout(() => moveModal.classList.add('hidden'), 300);
+}
+
+async function submitMove(targetAlbumId) {
+    toggleLoader(true);
+    try {
+        const res = await fetch('/api/assets/move', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
+            body: JSON.stringify({
+                ids: Array.from(state.selectedIds),
+                album_id: targetAlbumId
+            })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            closeMoveModal();
+            toggleSelectionMode(); // Exit selection mode
+            
+            // If we are currently viewing the source album (and not moving within same view context logic, essentially removing them)
+            // Or if we are viewing "All Photos" (no change visible immediately unless we filter)
+            // Actually, if we are in an album and we move OUT of it (target != current), they should disappear.
+            // If we are in All Photos, nothing changes visually except metadata.
+            
+            if (state.currentAlbumId && state.currentAlbumId !== targetAlbumId) {
+                // Remove moved items from current view
+                state.selectedIds.forEach(id => {
+                    const card = document.querySelector(`.asset-card[data-id="${id}"]`);
+                    if(card) card.remove();
+                });
+            }
+            // Clear selection set ref
+            state.selectedIds.clear();
+            updateSelectionUI();
+            
+            showModal({ title: 'Success', message: data.message, color: 'emerald', icon: 'fa-check' });
+        } else {
+            alert(data.error || 'Move failed');
+        }
+    } catch(e) { alert('Error moving assets'); }
+    finally { toggleLoader(false); }
 }
 
 // --- Search ---
