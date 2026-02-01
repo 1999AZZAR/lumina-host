@@ -381,14 +381,16 @@ def create_album(
     description: str | None = None,
     user_id: int | None = None,
     tenant_id: int | None = None,
+    parent_id: int | None = None,
+    is_public: bool = True,
 ) -> int | None:
     """Creates a new album. Returns album id."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO albums (name, description, user_id, tenant_id)
-            VALUES (?, ?, ?, ?)
-        ''', (name, description, user_id, tenant_id))
+            INSERT INTO albums (name, description, user_id, tenant_id, parent_id, is_public)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, description, user_id, tenant_id, parent_id, 1 if is_public else 0))
         conn.commit()
         return cursor.lastrowid
 
@@ -424,20 +426,48 @@ def get_albums(
         return [dict(r) for r in rows]
 
 
-def update_album(album_id: int, name: str, description: str | None = None) -> bool:
-    """Updates album details."""
+def update_album(
+    album_id: int, 
+    name: str, 
+    description: str | None = None, 
+    parent_id: int | None = None,
+    is_public: bool | None = None
+) -> bool:
+    """
+    Updates album details. 
+    If is_public is changed, it cascades to all assets in the album.
+    """
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE albums SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (name, description, album_id))
+        
+        # Build query dynamically
+        updates = ['name = ?', 'description = ?', 'parent_id = ?', 'updated_at = CURRENT_TIMESTAMP']
+        params: list[Any] = [name, description, parent_id]
+        
+        if is_public is not None:
+            updates.append('is_public = ?')
+            params.append(1 if is_public else 0)
+            
+        params.append(album_id)
+        
+        sql = f'UPDATE albums SET {", ".join(updates)} WHERE id = ?'
+        cursor.execute(sql, tuple(params))
+        
+        # Cascade visibility if changed
+        if is_public is not None:
+            cursor.execute(
+                'UPDATE gallery_assets SET is_public = ?, updated_at = CURRENT_TIMESTAMP WHERE album_id = ?', 
+                (1 if is_public else 0, album_id)
+            )
+            # We should also invalidate cache for assets in this album, but _invalidate_assets_cache is global currently
+            _invalidate_assets_cache()
+            
         conn.commit()
         return cursor.rowcount > 0
 
 
 def delete_album(album_id: int) -> bool:
-    """Deletes an album. Associated assets will have album_id set to NULL (via ON DELETE SET NULL)."""
+    """Deletes an album. Associated assets will have album_id set to NULL (via ON DELETE SET NULL). Child albums parent_id set to NULL."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM albums WHERE id = ?', (album_id,))

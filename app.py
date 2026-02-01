@@ -552,18 +552,20 @@ def create_album():
     try:
         name = validate_album_name(data.get('name'))
         description = (data.get('description') or '').strip()[:200] or None
-    except ValueError as e:
+        parent_id = int(data['parent_id']) if data.get('parent_id') else None
+        is_public = bool(data.get('is_public', True))
+    except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
         
     tenant_id = get_current_tenant_id()
     user_id = get_current_user_id()
     
     try:
-        album = AlbumService.create_album(name, description, user_id, tenant_id)
+        album = AlbumService.create_album(name, description, user_id, tenant_id, parent_id, is_public)
         return jsonify(album), 201
     except Exception as e:
         logger.error("Create album failed: %s", e)
-        return jsonify({'error': 'Failed to create album.'}), 500
+        return jsonify({'error': str(e) or 'Failed to create album.'}), 500
 
 
 @app.route('/api/albums/<int:album_id>', methods=['GET'])
@@ -589,7 +591,11 @@ def update_album(album_id: int):
     try:
         name = validate_album_name(data.get('name'))
         description = (data.get('description') or '').strip()[:200] or None
-    except ValueError as e:
+        parent_id = int(data['parent_id']) if data.get('parent_id') else None
+        is_public = data.get('is_public')
+        if is_public is not None:
+            is_public = bool(is_public)
+    except (ValueError, TypeError) as e:
         return jsonify({'error': str(e)}), 400
         
     tenant_id = get_current_tenant_id()
@@ -597,8 +603,12 @@ def update_album(album_id: int):
     from flask_login import current_user
     is_admin = getattr(current_user, 'role', None) == 'admin'
     
-    if AlbumService.update_album(album_id, name, description, tenant_id, user_id, is_admin):
-        return jsonify({'message': 'Album updated.'})
+    try:
+        if AlbumService.update_album(album_id, name, description, tenant_id, user_id, is_admin, parent_id, is_public):
+            return jsonify({'message': 'Album updated.'})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+        
     return jsonify({'error': 'Album not found or access denied.'}), 404
 
 

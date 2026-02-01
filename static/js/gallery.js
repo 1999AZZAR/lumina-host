@@ -91,6 +91,23 @@ async function fetchAlbums() {
     } catch (e) { console.error("Failed to fetch albums", e); }
 }
 
+function buildAlbumTree(albums) {
+    const map = {};
+    const roots = [];
+    // Sort by name first for consistent order within levels
+    const sorted = [...albums].sort((a, b) => a.name.localeCompare(b.name));
+    
+    sorted.forEach(a => { map[a.id] = { ...a, children: [] }; });
+    sorted.forEach(a => {
+        if (a.parent_id && map[a.parent_id]) {
+            map[a.parent_id].children.push(map[a.id]);
+        } else {
+            roots.push(map[a.id]);
+        }
+    });
+    return roots;
+}
+
 function renderAlbumsList() {
     const container = document.getElementById('album-list');
     const moveContainer = document.getElementById('move-album-list');
@@ -98,22 +115,39 @@ function renderAlbumsList() {
     
     container.innerHTML = state.albums.length ? '' : '<div class="text-center py-4 text-slate-500 text-xs">No albums yet</div>';
     
-    // Render Sidebar List
-    state.albums.forEach(album => {
+    const tree = buildAlbumTree(state.albums);
+
+    // Recursive render function
+    function renderNode(album, level = 0) {
         const isActive = state.currentAlbumId === album.id;
+        const padding = level * 16 + 16; // 16px base + indent
+        
         const el = document.createElement('button');
-        el.className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${isActive ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
+        el.className = `flex items-center gap-3 py-2 pr-4 rounded-xl text-left transition-all w-full text-sm ${isActive ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
+        el.style.paddingLeft = `${padding}px`;
         el.onclick = () => switchView(album.id);
+        
+        // Visibility icon if private
+        const privateIcon = !album.is_public ? '<i class="fa-solid fa-eye-slash text-[10px] text-amber-400 ml-auto" title="Private"></i>' : '';
+        
         el.innerHTML = `
-            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                <i class="fa-regular fa-folder"></i>
+            <div class="w-6 h-6 rounded-md bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                <i class="fa-regular ${level > 0 ? 'fa-folder-open' : 'fa-folder'} text-xs"></i>
             </div>
-            <span class="truncate">${album.name}</span>
+            <span class="truncate flex-1">${album.name}</span>
+            ${privateIcon}
         `;
         container.appendChild(el);
-    });
+        
+        if (album.children && album.children.length) {
+            album.children.forEach(child => renderNode(child, level + 1));
+        }
+    }
 
-    // Render Move Modal List
+    tree.forEach(root => renderNode(root));
+
+    // Render Move Modal List (Flattened with indent for select?)
+    // Actually Move Modal uses buttons, so similar recursion works
     if (moveContainer) {
         moveContainer.innerHTML = '';
         // Option to remove from album
@@ -126,19 +160,23 @@ function renderAlbumsList() {
             </button>
         `;
         
-        state.albums.forEach(album => {
-            if (album.id === state.currentAlbumId) return; // Don't show current album
+        function renderMoveNode(album, level = 0) {
+            if (album.id === state.currentAlbumId) return; // Don't move to self (context) - optional
+            
             const el = document.createElement('button');
-            el.className = 'flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-left w-full';
+            el.className = 'flex items-center gap-3 py-2 pr-4 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-left w-full text-sm';
+            el.style.paddingLeft = `${level * 16 + 16}px`;
             el.onclick = () => submitMove(album.id);
             el.innerHTML = `
-                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                    <i class="fa-regular fa-folder"></i>
+                <div class="w-6 h-6 rounded-md bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                    <i class="fa-regular fa-folder text-xs"></i>
                 </div>
                 <span class="truncate">${album.name}</span>
             `;
             moveContainer.appendChild(el);
-        });
+            if (album.children) album.children.forEach(child => renderMoveNode(child, level + 1));
+        }
+        tree.forEach(root => renderMoveNode(root));
     }
 }
 
@@ -151,9 +189,9 @@ async function switchView(albumId) {
     document.getElementById('searchInput').value = ''; // Reset search
     elements.grid.innerHTML = '';
     
-    // Update UI Active State
+    // Update UI Active State (re-render list to update styles)
     document.getElementById('nav-all').className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${!albumId ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
-    renderAlbumsList(); // Re-render to update active class in sidebar
+    renderAlbumsList(); 
 
     // Update Header Title
     const titleEl = document.getElementById('page-title');
@@ -163,14 +201,19 @@ async function switchView(albumId) {
     if (albumId) {
         const album = state.albums.find(a => a.id === albumId);
         titleEl.innerText = album ? album.name : 'Album';
-        descEl.innerHTML = album && album.description ? album.description : '<span class="italic opacity-50">No description</span>';
-        if(actionBtn) actionBtn.classList.remove('hidden');
-        if(actionBtn) actionBtn.classList.add('flex');
+        
+        let meta = '';
+        if (album) {
+            meta = album.description ? `<span class="mr-3">${album.description}</span>` : '<span class="italic opacity-50 mr-3">No description</span>';
+            if (!album.is_public) meta += '<span class="text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Private</span>';
+        }
+        descEl.innerHTML = meta;
+        
+        if(actionBtn) { actionBtn.classList.remove('hidden'); actionBtn.classList.add('flex'); }
     } else {
         titleEl.innerText = 'Digital Assets';
         descEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Securely hosted on WordPress CDN.</span>';
-        if(actionBtn) actionBtn.classList.add('hidden');
-        if(actionBtn) actionBtn.classList.remove('flex');
+        if(actionBtn) { actionBtn.classList.add('hidden'); actionBtn.classList.remove('flex'); }
     }
 
     if(elements.sentinel) elements.sentinel.style.display = 'flex';
@@ -181,10 +224,34 @@ async function switchView(albumId) {
 const albumModal = document.getElementById('album-modal');
 let editingAlbumId = null;
 
+function populateParentDropdown(excludeId = null) {
+    const select = document.getElementById('album-parent-input');
+    select.innerHTML = '<option value="">No Parent (Root)</option>';
+    
+    const tree = buildAlbumTree(state.albums);
+    
+    function addOption(node, level) {
+        if (node.id === excludeId) return; // Can't be child of self
+        const prefix = '&nbsp;'.repeat(level * 4) + (level > 0 ? '└ ' : '');
+        const option = document.createElement('option');
+        option.value = node.id;
+        option.innerHTML = prefix + node.name;
+        select.appendChild(option);
+        if (node.children) node.children.forEach(child => addOption(child, level + 1));
+    }
+    
+    tree.forEach(root => addOption(root, 0));
+}
+
 function openCreateAlbumModal() {
     editingAlbumId = null;
     document.getElementById('album-modal-title').innerText = 'New Album';
     document.getElementById('album-name-input').value = '';
+    document.getElementById('album-desc-input').value = '';
+    document.getElementById('album-public-input').checked = true;
+    
+    populateParentDropdown();
+    
     albumModal.classList.remove('hidden');
     void albumModal.offsetWidth;
     albumModal.classList.remove('opacity-0');
@@ -199,16 +266,23 @@ function closeAlbumModal() {
 
 async function submitAlbum() {
     const name = document.getElementById('album-name-input').value.trim();
+    const description = document.getElementById('album-desc-input').value.trim();
+    const parentIdVal = document.getElementById('album-parent-input').value;
+    const parent_id = parentIdVal ? parseInt(parentIdVal) : null;
+    const is_public = document.getElementById('album-public-input').checked;
+
     if (!name) return alert("Name is required");
     
     toggleLoader(true);
     try {
         const url = editingAlbumId ? `/api/albums/${editingAlbumId}` : '/api/albums';
         const method = editingAlbumId ? 'PATCH' : 'POST';
+        const body = { name, description, parent_id, is_public };
+        
         const res = await fetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
-            body: JSON.stringify({ name })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if(handleAuthResponse(res, data)) return;
@@ -216,8 +290,12 @@ async function submitAlbum() {
             closeAlbumModal();
             fetchAlbums(); // Refresh list
             if(editingAlbumId && state.currentAlbumId === editingAlbumId) {
-                // Update title if we are inside the edited album
+                // Update header immediately if viewing edited album
                 document.getElementById('page-title').innerText = name;
+                // Description and visibility updates require data reload or manual DOM patch,
+                // but switchView(current) or just letting fetchAlbums handle sidebar is mostly enough.
+                // We'll reload the view to be safe/consistent.
+                switchView(state.currentAlbumId);
             }
         } else {
             alert(data.error || 'Failed to save album');
@@ -234,6 +312,13 @@ function editCurrentAlbum() {
     editingAlbumId = album.id;
     document.getElementById('album-modal-title').innerText = 'Edit Album';
     document.getElementById('album-name-input').value = album.name;
+    document.getElementById('album-desc-input').value = album.description || '';
+    document.getElementById('album-public-input').checked = !!album.is_public;
+    
+    populateParentDropdown(album.id);
+    // Set selected parent
+    document.getElementById('album-parent-input').value = album.parent_id || '';
+    
     toggleAlbumMenu(); // Close menu
     
     albumModal.classList.remove('hidden');

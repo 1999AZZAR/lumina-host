@@ -16,9 +16,17 @@ class AlbumService:
         description: str | None,
         user_id: int | None,
         tenant_id: int | None,
+        parent_id: int | None = None,
+        is_public: bool = True,
     ) -> dict[str, Any]:
         """Create a new album."""
-        album_id = database.create_album(name, description, user_id, tenant_id)
+        # Verify parent exists and belongs to same context
+        if parent_id:
+            parent = AlbumService.get_album(parent_id, tenant_id, user_id, is_admin=False)
+            if not parent:
+                raise ValueError("Invalid parent album")
+                
+        album_id = database.create_album(name, description, user_id, tenant_id, parent_id, is_public)
         if not album_id:
             raise ValueError("Failed to create album")
         return database.get_album(album_id) or {}
@@ -46,22 +54,9 @@ class AlbumService:
         if is_admin:
             return album
             
-        # Check ownership
-        # If user is in the same tenant, they might see it depending on rules.
-        # Current rule: Users see their own albums + tenant albums? 
-        # Actually, `database.get_albums` filters strictly. 
-        # Let's enforce strict ownership or tenant membership.
-        
-        # If tenant_id is provided, album must belong to it.
         if tenant_id and album['tenant_id'] != tenant_id:
             return None
             
-        # If user_id is provided, logic depends.
-        # If we want shared tenant albums, maybe looser? 
-        # For now, let's match `delete_assets` logic: typically user owns resources.
-        # But if we want shared albums, we might relax user_id check.
-        # Let's stick to strict user_id check if provided, unless we define "shared albums".
-        # Assuming private user albums for now.
         if user_id and album['user_id'] != user_id:
             return None
             
@@ -75,12 +70,22 @@ class AlbumService:
         tenant_id: int | None,
         user_id: int | None,
         is_admin: bool = False,
+        parent_id: int | None = None,
+        is_public: bool | None = None,
     ) -> bool:
         """Update album. Checks permissions."""
         album = AlbumService.get_album(album_id, tenant_id, user_id, is_admin)
         if not album:
             return False
-        return database.update_album(album_id, name, description)
+            
+        if parent_id:
+            if parent_id == album_id:
+                raise ValueError("Album cannot be its own parent")
+            parent = AlbumService.get_album(parent_id, tenant_id, user_id, is_admin)
+            if not parent:
+                raise ValueError("Invalid parent album")
+                
+        return database.update_album(album_id, name, description, parent_id, is_public)
 
     @staticmethod
     def delete_album(
