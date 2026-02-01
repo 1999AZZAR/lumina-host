@@ -8,19 +8,23 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 
 ## Features
 
-* Decoupled Architecture: Application logic (Flask) is separated from media storage (WordPress).
-* Local Caching: SQLite stores metadata for instant page loads, minimizing API calls.
-* Glassmorphic UI: Modern, dark-themed interface designed with Tailwind CSS.
-* Mock Mode: Built-in simulation for testing without a live WordPress instance.
-* Security First: Sanitized filenames and environment-variable based configuration.
-* AMT (Authentication, Authorization, Multi-Tenancy): User login, role-based access, tenant isolation, and API token authentication.
+* **Decoupled Architecture:** Application logic (Flask) is separated from media storage (WordPress).
+* **High Performance:**
+    *   **Local Caching:** SQLite stores metadata for instant page loads.
+    *   **Connection Pooling:** Reuses TCP connections to WordPress for faster bulk operations.
+    *   **Background Processing:** Uploads and deletions are offloaded to background threads.
+    *   **Image Optimization:** Client-side resizing (>2560px), compression, and metadata stripping (Pillow) to ensure fast, reliable uploads.
+* **Resilience:** Automatic retries with exponential backoff for transient WordPress errors (500/502/503).
+* **Glassmorphic UI:** Modern, dark-themed interface designed with Tailwind CSS.
+* **Security First:** Sanitized filenames (standardized to `MMDDYY_HHMM_WXYZ`), secure cookies, and environment-variable based configuration.
+* **AMT (Authentication, Authorization, Multi-Tenancy):** User login, role-based access, tenant isolation, and API token authentication.
 
 ## Technical Stack
 
-* Backend: Python 3, Flask, Flask-Login
-* Database: SQLite
-* Frontend: Tailwind CSS, Font Awesome
-* Integration: WordPress REST API
+* **Backend:** Python 3.12, Flask, Flask-Login, Gunicorn (Production)
+* **Database:** SQLite
+* **Frontend:** Tailwind CSS, Font Awesome
+* **Integration:** WordPress REST API (with connection pooling & retries)
 
 ## Installation
 
@@ -51,8 +55,9 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    cp example.env .env
    ```
 
-   * Mock Mode: Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
-   * Live Mode: Fill in WordPress credentials in `.env` or in the app (Profile, admin only: WordPress integration).
+   * **Mock Mode:** Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
+   * **Live Mode:** Fill in WordPress credentials in `.env` or in the app (Profile, admin only: WordPress integration).
+   * **Dev Mode:** Set `DEBUG=1` in `.env` for local development to avoid secure cookie issues over HTTP.
    
    **[Read the WordPress Setup Guide](docs/WORDPRESS_SETUP.md)** for detailed instructions on getting your API URL and Application Password.
 
@@ -61,6 +66,7 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    WP_USER=your_username
    WP_PASS=your_application_password
    FLASK_SECRET_KEY=generate-a-random-string-here
+   DEBUG=1
    ```
 
    **AMT (optional):** To enable login and per-user/tenant assets, set in `.env`. The app creates a default tenant and admin user at startup when `ADMIN_PASSWORD` is set (no migration required):
@@ -78,6 +84,7 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 5. Run the Application:
 
    ```bash
+   # Development
    python app.py
    ```
 
@@ -96,23 +103,26 @@ Tests use an isolated SQLite database and mock WordPress; no `.env` credentials 
 
 ## Docker
 
-Using Docker Compose (see [docker-compose.yml](docker-compose.yml)):
+The Docker setup uses Gunicorn for production-grade performance.
 
 ```bash
 cp example.env .env
-# Edit .env: FLASK_SECRET_KEY; for AMT set ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD. WP_* optional (or set in Profile > WordPress integration).
-docker compose up -d
+# Edit .env: FLASK_SECRET_KEY; for AMT set ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD. 
+# Ensure RATELIMIT_STORAGE_URL is set to 'redis://redis:6379/1' (or similar) in .env for Docker.
+
+docker compose up -d --build
 ```
 
-The database is stored in a named volume `gallery_data` (DB_PATH=/app/data/gallery.db). The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in; admins can set WordPress credentials under Profile > WordPress integration. To assign existing gallery assets to the default tenant, run once: `docker compose exec web python -m migrations.add_user_system`.
+The database is stored in a named volume `gallery_data` (DB_PATH=/app/data/gallery.db). The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in; admins can set WordPress credentials under Profile > WordPress integration. 
 
 ## Production
 
-For production deployments:
+For production deployments (outside Docker):
 
-* **HTTPS:** Serve the app behind HTTPS. Set `SESSION_COOKIE_SECURE` via environment (session cookies are sent only over HTTPS when not in debug).
-* **Rate limits:** Set `RATELIMIT_STORAGE_URL` (e.g. to your Redis URL) so Flask-Limiter uses Redis instead of in-memory storage; otherwise limits are per-process and reset on restart.
-* **Admin password:** Use a strong `ADMIN_PASSWORD` (at least 8 characters, with letters and digits). `ADMIN_USERNAME` and `ADMIN_EMAIL` must be valid (alphanumeric/underscore username, valid email).
+* **HTTPS:** Serve the app behind HTTPS. `SESSION_COOKIE_SECURE` is automatically enabled when `DEBUG` is not set.
+* **Server:** Use a WSGI server like Gunicorn (included in requirements) instead of `python app.py`.
+* **Rate limits:** Set `RATELIMIT_STORAGE_URI` (e.g., `redis://localhost:6379/1`) so Flask-Limiter uses Redis.
+* **Admin password:** Use a strong `ADMIN_PASSWORD`.
 
 For full API and usage documentation, see [docs/](docs/).
 

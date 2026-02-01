@@ -20,7 +20,7 @@ API endpoints that require auth return `401` when unauthenticated and `403` when
 | GET | `/` | No | Gallery page (HTML). Public view shows only public assets; when logged in, assets are filtered by tenant/user and include hidden; admins see all. |
 | GET | `/api/assets` | No | List assets. Query: `page` (int, default 1), `q` (search). Public view returns only `is_public=1`; when logged in returns own assets (including hidden). Rate limit: 60/hour. |
 | PATCH | `/api/assets/<id>/visibility` | Yes | Set visibility. JSON body: `{ "is_public": true|false }`. Owner or admin only. |
-| POST | `/upload` | Yes | Upload one or more image files (multipart). Rate limit: 20/minute. |
+| POST | `/upload` | Yes | Upload one or more image files (multipart). **Note:** Images are automatically optimized (resized to max 2560px, compressed, EXIF stripped) and renamed (`MMDDYY_HHMM_WXYZ.ext`) before storage. Rate limit: 20/minute. |
 | POST | `/delete` | Yes | Bulk delete. JSON body: `{ "ids": [1, 2, ...] }`. Only own tenant/user assets; admins can delete any. Rate limit: 30/minute. |
 | GET | `/proxy_download?url=` | No | Proxy image download (URL must match WordPress host). Rate limit: 30/minute. |
 
@@ -73,8 +73,8 @@ Response (200):
     {
       "id": 1,
       "wp_media_id": 123,
-      "title": "photo.jpg",
-      "file_name": "photo.jpg",
+      "title": "020126_1630_abcd.jpg",
+      "file_name": "020126_1630_abcd.jpg",
       "mime_type": "image/jpeg",
       "url_full": "https://...",
       "url_thumbnail": "https://...",
@@ -168,7 +168,7 @@ Default (when no per-route limit): 200/day, 60/hour per IP.
 | /proxy_download | 30/minute |
 | /admin/users (POST) | 20/hour |
 
-In production, set `RATELIMIT_STORAGE_URL` (e.g. Redis) so limits are shared across processes.
+In production, set `RATELIMIT_STORAGE_URI` (e.g. `redis://localhost:6379/0`) so limits are shared across processes.
 
 ---
 
@@ -185,3 +185,4 @@ JSON errors use body `{ "error": "<message>" }` when the request has `X-Requeste
 | 413 | Request entity too large (upload over max size). |
 | 429 | Rate limit exceeded. |
 | 500 | Internal server error. |
+| 502/504 | Upstream error (WordPress failed to respond). |

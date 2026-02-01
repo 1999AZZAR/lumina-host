@@ -6,6 +6,7 @@ This project uses your WordPress site as a "Headless" backend to store and serve
 
 *   A self-hosted WordPress site (or a managed one like WordPress.com with a Business plan).
 *   Administrator access to the WordPress dashboard.
+*   **Note:** Lumina Host automatically standardizes filenames (`MMDDYY_HHMM_WXYZ.ext`) and optimizes images (resizing/compression) before upload. No special WordPress plugins are required for this.
 
 ---
 
@@ -80,6 +81,12 @@ WP_PASS=abcd efgh ijkl mnop
         RewriteCond %{HTTP:Authorization} ^(.*)
         RewriteRule ^(.*) - [E=HTTP_AUTHORIZATION:%1]
         ```
+
+### 500 / 502 / 503 / 504 Errors (Intermittent)
+*   **Lumina Host automatically retries these errors.** If they persist:
+    *   Your WordPress server might be overloaded or timing out processing large images.
+    *   The built-in client-side optimization in Lumina (resizing to 2560px) helps mitigate this.
+    *   Check your server's `client_max_body_size` (Nginx) or `upload_max_filesize` (PHP) settings.
 
 ### JSON Error / HTML Response
 *   **Cause:** The API URL is wrong, and WordPress is returning a 404 page (HTML) instead of JSON.
