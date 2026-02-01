@@ -96,6 +96,20 @@ def init_db():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
+        
+        # Migrate old albums table schema (add missing columns)
+        cursor.execute('PRAGMA table_info(albums)')
+        album_cols = [row[1] for row in cursor.fetchall()]
+        
+        if 'parent_id' not in album_cols:
+            cursor.execute('ALTER TABLE albums ADD COLUMN parent_id INTEGER REFERENCES albums(id) ON DELETE SET NULL')
+            conn.commit()
+        
+        if 'is_public' not in album_cols:
+            cursor.execute('ALTER TABLE albums ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1')
+            conn.commit()
+        
+        # Create indexes after ensuring columns exist
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_user ON albums(user_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_tenant ON albums(tenant_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_parent ON albums(parent_id);')
