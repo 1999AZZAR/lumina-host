@@ -28,5 +28,9 @@ COPY . .
 EXPOSE 5050
 
 # Run the application with Gunicorn
-# Initializes DB and Admin user before starting workers
-CMD ["sh", "-c", "python3 -c 'from app import ensure_default_admin; import database; database.init_db(); ensure_default_admin()' && gunicorn --bind 0.0.0.0:5050 --workers 4 --threads 2 --access-logfile - --error-logfile - app:app"]
+# Initializes DB, runs migrations, and creates Admin user before starting workers
+CMD ["sh", "-c", "python3 -c 'import database; database.init_db()' && \
+    python3 -m migrations.add_user_system && \
+    python3 -m migrations.add_albums && \
+    python3 -m migrations.add_nested_albums && \
+    gunicorn --bind 0.0.0.0:5050 --workers 4 --threads 2 --access-logfile - --error-logfile - app:app"]
