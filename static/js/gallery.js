@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.LuminaConfig) {
         state.galleryData = window.LuminaConfig.initialAssets || [];
         state.hasMore = window.LuminaConfig.hasMore || false;
-        if(window.LuminaConfig.isAuthenticated) fetchAlbums();
+        if (window.LuminaConfig.isAuthenticated) fetchAlbums();
     }
     initInfiniteScroll();
     initGlobalListeners();
@@ -96,7 +96,7 @@ function buildAlbumTree(albums) {
     const roots = [];
     // Sort by name first for consistent order within levels
     const sorted = [...albums].sort((a, b) => a.name.localeCompare(b.name));
-    
+
     sorted.forEach(a => { map[a.id] = { ...a, children: [] }; });
     sorted.forEach(a => {
         if (a.parent_id && map[a.parent_id]) {
@@ -112,24 +112,24 @@ function renderAlbumsList() {
     const container = document.getElementById('album-list');
     const moveContainer = document.getElementById('move-album-list');
     if (!container) return;
-    
+
     container.innerHTML = state.albums.length ? '' : '<div class="text-center py-4 text-slate-500 text-xs">No albums yet</div>';
-    
+
     const tree = buildAlbumTree(state.albums);
 
     // Recursive render function
     function renderNode(album, level = 0) {
         const isActive = state.currentAlbumId === album.id;
         const padding = level * 16 + 16; // 16px base + indent
-        
+
         const el = document.createElement('button');
         el.className = `flex items-center gap-3 py-2 pr-4 rounded-xl text-left transition-all w-full text-sm ${isActive ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
         el.style.paddingLeft = `${padding}px`;
         el.onclick = () => switchView(album.id);
-        
+
         // Visibility icon if private
         const privateIcon = !album.is_public ? '<i class="fa-solid fa-eye-slash text-[10px] text-amber-400 ml-auto" title="Private"></i>' : '';
-        
+
         el.innerHTML = `
             <div class="w-6 h-6 rounded-md bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
                 <i class="fa-regular ${level > 0 ? 'fa-folder-open' : 'fa-folder'} text-xs"></i>
@@ -138,7 +138,7 @@ function renderAlbumsList() {
             ${privateIcon}
         `;
         container.appendChild(el);
-        
+
         if (album.children && album.children.length) {
             album.children.forEach(child => renderNode(child, level + 1));
         }
@@ -159,10 +159,10 @@ function renderAlbumsList() {
                 <span>Remove from Album</span>
             </button>
         `;
-        
+
         function renderMoveNode(album, level = 0) {
             if (album.id === state.currentAlbumId) return; // Don't move to self (context) - optional
-            
+
             const el = document.createElement('button');
             el.className = 'flex items-center gap-3 py-2 pr-4 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-left w-full text-sm';
             el.style.paddingLeft = `${level * 16 + 16}px`;
@@ -188,35 +188,35 @@ async function switchView(albumId) {
     state.searchQuery = '';
     document.getElementById('searchInput').value = ''; // Reset search
     elements.grid.innerHTML = '';
-    
+
     // Update UI Active State (re-render list to update styles)
     document.getElementById('nav-all').className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${!albumId ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
-    renderAlbumsList(); 
+    renderAlbumsList();
 
     // Update Header Title
     const titleEl = document.getElementById('page-title');
     const descEl = document.getElementById('page-desc');
     const actionBtn = document.getElementById('album-actions-btn');
-    
+
     if (albumId) {
         const album = state.albums.find(a => a.id === albumId);
         titleEl.innerText = album ? album.name : 'Album';
-        
+
         let meta = '';
         if (album) {
             meta = album.description ? `<span class="mr-3">${album.description}</span>` : '<span class="italic opacity-50 mr-3">No description</span>';
             if (!album.is_public) meta += '<span class="text-[10px] font-bold tracking-wider text-slate-900 bg-amber-400/90 px-2 py-0.5 rounded shadow">Private</span>';
         }
         descEl.innerHTML = meta;
-        
-        if(actionBtn) { actionBtn.classList.remove('hidden'); actionBtn.classList.add('flex'); }
+
+        if (actionBtn) { actionBtn.classList.remove('hidden'); actionBtn.classList.add('flex'); }
     } else {
         titleEl.innerText = 'Digital Assets';
         descEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Securely hosted on WordPress CDN.</span>';
-        if(actionBtn) { actionBtn.classList.add('hidden'); actionBtn.classList.remove('flex'); }
+        if (actionBtn) { actionBtn.classList.add('hidden'); actionBtn.classList.remove('flex'); }
     }
 
-    if(elements.sentinel) elements.sentinel.style.display = 'flex';
+    if (elements.sentinel) elements.sentinel.style.display = 'flex';
     await loadMore();
 }
 
@@ -227,145 +227,145 @@ let editingAlbumId = null;
 function populateParentDropdown(excludeId = null) {
     const select = document.getElementById('album-parent-input');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="">No Parent (Root)</option>';
-    
+
     // Ensure we have a tree. If state.albums is empty, tree is empty.
     const tree = buildAlbumTree(state.albums || []);
-    
+
     function addOption(node, level) {
         if (node.id === excludeId) return; // Can't be child of self (or self)
-        
+
         // Use dashes for visual hierarchy in select, simpler than &nbsp;
         const prefix = level > 0 ? '— '.repeat(level) + ' ' : '';
         const option = document.createElement('option');
         option.value = node.id;
         option.textContent = prefix + node.name; // textContent handles escaping
         select.appendChild(option);
-        
+
         if (node.children && node.children.length > 0) {
             node.children.forEach(child => addOption(child, level + 1));
         }
     }
-    
+
     tree.forEach(root => addOption(root, 0));
 }
 
 function openCreateAlbumModal() {
     editingAlbumId = null;
     const titleEl = document.getElementById('album-modal-title');
-    if(titleEl) titleEl.innerText = 'New Album';
-    
+    if (titleEl) titleEl.innerText = 'New Album';
+
     const nameIn = document.getElementById('album-name-input');
-    if(nameIn) nameIn.value = '';
-    
+    if (nameIn) nameIn.value = '';
+
     const descIn = document.getElementById('album-desc-input');
-    if(descIn) descIn.value = '';
-    
+    if (descIn) descIn.value = '';
+
     const pubIn = document.getElementById('album-public-input');
-    if(pubIn) pubIn.checked = true;
-    
+    if (pubIn) pubIn.checked = true;
+
     const delBtn = document.getElementById('btn-delete-album');
-    if(delBtn) delBtn.classList.add('hidden'); // Hide delete
-    
+    if (delBtn) delBtn.classList.add('hidden'); // Hide delete
+
     populateParentDropdown();
-    
-    if(albumModal) {
+
+    if (albumModal) {
         albumModal.classList.remove('hidden');
         // Force reflow
         void albumModal.offsetWidth;
         albumModal.classList.remove('opacity-0');
         const content = document.getElementById('album-modal-content');
-        if(content) content.classList.remove('scale-95');
+        if (content) content.classList.remove('scale-95');
     }
 }
 
 function closeAlbumModal() {
-    if(!albumModal) return;
+    if (!albumModal) return;
     albumModal.classList.add('opacity-0');
     const content = document.getElementById('album-modal-content');
-    if(content) content.classList.add('scale-95');
+    if (content) content.classList.add('scale-95');
     setTimeout(() => albumModal.classList.add('hidden'), 300);
 }
 
 async function submitAlbum() {
     const nameInput = document.getElementById('album-name-input');
     const name = nameInput ? nameInput.value.trim() : '';
-    
+
     const descInput = document.getElementById('album-desc-input');
     const description = descInput ? descInput.value.trim() : '';
-    
+
     const parentInput = document.getElementById('album-parent-input');
     const parentIdVal = parentInput ? parentInput.value : '';
     const parent_id = parentIdVal ? parseInt(parentIdVal) : null;
-    
+
     const pubInput = document.getElementById('album-public-input');
     const is_public = pubInput ? pubInput.checked : true;
 
     if (!name) return alert("Name is required");
-    
+
     toggleLoader(true);
     try {
         const url = editingAlbumId ? `/api/albums/${editingAlbumId}` : '/api/albums';
         const method = editingAlbumId ? 'PATCH' : 'POST';
         const body = { name, description, parent_id, is_public };
-        
+
         const res = await fetch(url, {
             method: method,
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify(body)
         });
         const data = await res.json();
-        if(handleAuthResponse(res, data)) return;
-        if(res.ok) {
+        if (handleAuthResponse(res, data)) return;
+        if (res.ok) {
             closeAlbumModal();
             await fetchAlbums(); // Refresh list and wait
-            if(editingAlbumId && state.currentAlbumId === editingAlbumId) {
+            if (editingAlbumId && state.currentAlbumId === editingAlbumId) {
                 // Update header immediately if viewing edited album
                 const titleEl = document.getElementById('page-title');
-                if(titleEl) titleEl.innerText = name;
+                if (titleEl) titleEl.innerText = name;
                 switchView(state.currentAlbumId);
             }
         } else {
             alert(data.error || 'Failed to save album');
         }
-    } catch(e) { console.error(e); alert('Error saving album'); }
+    } catch (e) { console.error(e); alert('Error saving album'); }
     finally { toggleLoader(false); }
 }
 
 function editCurrentAlbum() {
-    if(!state.currentAlbumId) return;
+    if (!state.currentAlbumId) return;
     const album = state.albums.find(a => a.id === state.currentAlbumId);
-    if(!album) return;
-    
+    if (!album) return;
+
     editingAlbumId = album.id;
-    
+
     const titleEl = document.getElementById('album-modal-title');
-    if(titleEl) titleEl.innerText = 'Manage Album';
-    
+    if (titleEl) titleEl.innerText = 'Manage Album';
+
     const nameIn = document.getElementById('album-name-input');
-    if(nameIn) nameIn.value = album.name;
-    
+    if (nameIn) nameIn.value = album.name;
+
     const descIn = document.getElementById('album-desc-input');
-    if(descIn) descIn.value = album.description || '';
-    
+    if (descIn) descIn.value = album.description || '';
+
     const pubIn = document.getElementById('album-public-input');
-    if(pubIn) pubIn.checked = !!album.is_public;
-    
+    if (pubIn) pubIn.checked = !!album.is_public;
+
     const delBtn = document.getElementById('btn-delete-album');
-    if(delBtn) delBtn.classList.remove('hidden'); // Show delete
-    
+    if (delBtn) delBtn.classList.remove('hidden'); // Show delete
+
     populateParentDropdown(album.id);
     // Set selected parent
     const parentIn = document.getElementById('album-parent-input');
-    if(parentIn) parentIn.value = album.parent_id || '';
-    
-    if(albumModal) {
+    if (parentIn) parentIn.value = album.parent_id || '';
+
+    if (albumModal) {
         albumModal.classList.remove('hidden');
         void albumModal.offsetWidth;
         albumModal.classList.remove('opacity-0');
         const content = document.getElementById('album-modal-content');
-        if(content) content.classList.remove('scale-95');
+        if (content) content.classList.remove('scale-95');
     }
 }
 
@@ -381,15 +381,15 @@ function confirmDeleteAlbum() {
             try {
                 const res = await fetch(`/api/albums/${state.currentAlbumId}`, {
                     method: 'DELETE',
-                    headers: {'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'}
+                    headers: { 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                if(res.ok) {
+                if (res.ok) {
                     await fetchAlbums();
                     switchView(null); // Go back to all photos
                 } else {
                     alert('Failed to delete album');
                 }
-            } catch(e) { alert('Error deleting album'); }
+            } catch (e) { alert('Error deleting album'); }
             finally { toggleLoader(false); }
         }
     });
@@ -406,11 +406,11 @@ function initInfiniteScroll() {
 
 async function loadMore() {
     state.isLoading = true;
-    if(elements.sentinel) elements.sentinel.classList.remove('opacity-0');
+    if (elements.sentinel) elements.sentinel.classList.remove('opacity-0');
     try {
         let url = `/api/assets?page=${state.currentPage + 1}&q=${encodeURIComponent(state.searchQuery)}`;
         if (state.currentAlbumId) url += `&album_id=${state.currentAlbumId}`;
-        
+
         const res = await fetch(url);
         const data = await res.json();
         if (handleAuthResponse(res, data)) return;
@@ -434,10 +434,10 @@ async function loadMore() {
         }
         state.hasMore = data.has_more;
         if (!state.hasMore && elements.sentinel) elements.sentinel.style.display = 'none';
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally {
         state.isLoading = false;
-        if(elements.sentinel) elements.sentinel.classList.add('opacity-0');
+        if (elements.sentinel) elements.sentinel.classList.add('opacity-0');
     }
 }
 
@@ -464,38 +464,38 @@ async function submitMove(targetAlbumId) {
     try {
         const res = await fetch('/api/assets/move', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({
                 ids: Array.from(state.selectedIds),
                 album_id: targetAlbumId
             })
         });
         const data = await res.json();
-        if(res.ok) {
+        if (res.ok) {
             closeMoveModal();
             toggleSelectionMode(); // Exit selection mode
-            
+
             // If we are currently viewing the source album (and not moving within same view context logic, essentially removing them)
             // Or if we are viewing "All Photos" (no change visible immediately unless we filter)
             // Actually, if we are in an album and we move OUT of it (target != current), they should disappear.
             // If we are in All Photos, nothing changes visually except metadata.
-            
+
             if (state.currentAlbumId && state.currentAlbumId !== targetAlbumId) {
                 // Remove moved items from current view
                 state.selectedIds.forEach(id => {
                     const card = document.querySelector(`.asset-card[data-id="${id}"]`);
-                    if(card) card.remove();
+                    if (card) card.remove();
                 });
             }
             // Clear selection set ref
             state.selectedIds.clear();
             updateSelectionUI();
-            
+
             showModal({ title: 'Success', message: data.message, color: 'emerald', icon: 'fa-check' });
         } else {
             alert(data.error || 'Move failed');
         }
-    } catch(e) { alert('Error moving assets'); }
+    } catch (e) { alert('Error moving assets'); }
     finally { toggleLoader(false); }
 }
 
@@ -510,7 +510,7 @@ async function performSearch() {
     state.galleryData = [];
     state.currentPage = 0;
     state.hasMore = true;
-    if(elements.sentinel) elements.sentinel.style.display = 'flex';
+    if (elements.sentinel) elements.sentinel.style.display = 'flex';
     await loadMore();
 }
 
@@ -568,12 +568,12 @@ function toggleSelectionMode() {
         btn.classList.add('bg-indigo-500/20', 'border-indigo-500/50');
         btn.querySelector('span').innerText = 'Cancel';
         document.querySelectorAll('.selection-overlay').forEach(el => el.classList.remove('hidden'));
-        if(elements.fabContainer) elements.fabContainer.classList.add('translate-y-32');
+        if (elements.fabContainer) elements.fabContainer.classList.add('translate-y-32');
     } else {
         btn.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
         btn.querySelector('span').innerText = 'Select';
         document.querySelectorAll('.selection-overlay').forEach(el => el.classList.add('hidden'));
-        if(elements.fabContainer) elements.fabContainer.classList.remove('translate-y-32');
+        if (elements.fabContainer) elements.fabContainer.classList.remove('translate-y-32');
         state.selectedIds.clear();
         updateSelectionUI();
         document.querySelectorAll('.asset-card').forEach(card => {
@@ -607,8 +607,8 @@ function toggleAssetSelection(card, id) {
 }
 
 function updateSelectionUI() {
-    if(elements.selectedCountSpan) elements.selectedCountSpan.innerText = state.selectedIds.size;
-    if(elements.bulkActions) {
+    if (elements.selectedCountSpan) elements.selectedCountSpan.innerText = state.selectedIds.size;
+    if (elements.bulkActions) {
         state.selectedIds.size > 0 ? elements.bulkActions.classList.remove('translate-y-32') : elements.bulkActions.classList.add('translate-y-32');
     }
 }
@@ -669,10 +669,10 @@ async function downloadSelected() {
     });
     try {
         await Promise.all(promises);
-        const content = await zip.generateAsync({type:"blob"});
+        const content = await zip.generateAsync({ type: "blob" });
         saveAs(content, "lumina-gallery.zip");
         toggleSelectionMode();
-    } catch (e) { alert("Download failed."); } 
+    } catch (e) { alert("Download failed."); }
     finally { toggleLoader(false); }
 }
 
@@ -685,7 +685,7 @@ async function performDelete() {
     try {
         const res = await fetch('/delete', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ ids: Array.from(state.selectedIds) })
         });
         const data = await res.json().catch(() => ({}));
@@ -699,7 +699,7 @@ async function performDelete() {
             });
             toggleSelectionMode();
         }
-    } catch(e) { alert('Error'); }
+    } catch (e) { alert('Error'); }
     finally { toggleLoader(false); }
 }
 
@@ -732,25 +732,25 @@ function closeLightbox() {
     setTimeout(() => { elements.lightbox.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
 }
 
-function nextImage(e) { if(e) e.stopPropagation(); state.currentLightboxIndex = (state.currentLightboxIndex + 1) % state.galleryData.length; updateLightboxContent(); }
-function prevImage(e) { if(e) e.stopPropagation(); state.currentLightboxIndex = (state.currentLightboxIndex - 1 + state.galleryData.length) % state.galleryData.length; updateLightboxContent(); }
+function nextImage(e) { if (e) e.stopPropagation(); state.currentLightboxIndex = (state.currentLightboxIndex + 1) % state.galleryData.length; updateLightboxContent(); }
+function prevImage(e) { if (e) e.stopPropagation(); state.currentLightboxIndex = (state.currentLightboxIndex - 1 + state.galleryData.length) % state.galleryData.length; updateLightboxContent(); }
 
 async function saveLightboxImage() {
     const asset = state.galleryData[state.currentLightboxIndex];
-    if(!asset) return;
+    if (!asset) return;
     toggleLoader(true);
     try {
         const proxyUrl = `/proxy_download?url=${encodeURIComponent(asset.urlFull)}`;
         const res = await fetch(proxyUrl);
         const blob = await res.blob();
         saveAs(blob, getDownloadFilename(asset));
-    } catch(e) { alert('Save failed'); } 
+    } catch (e) { alert('Save failed'); }
     finally { toggleLoader(false); }
 }
 
 function shareLightboxImage() {
     const asset = state.galleryData[state.currentLightboxIndex];
-    if(!asset) return;
+    if (!asset) return;
     const copyToClipboard = (text) => {
         if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
         let textArea = document.createElement("textarea");
@@ -782,9 +782,15 @@ class UploadQueue {
         });
         this.process();
     }
-    show() { if(elements.queueContainer) elements.queueContainer.classList.remove('translate-y-4', 'opacity-0'); }
+    show() {
+        if (elements.queueContainer) {
+            elements.queueContainer.classList.remove('translate-y-4', 'opacity-0');
+            // Enable pointer events when visible
+            elements.queueContainer.classList.add('pointer-events-auto');
+        }
+    }
     createUI(item) {
-        if(!elements.queueList) return;
+        if (!elements.queueList) return;
         const el = document.createElement('div');
         el.className = 'p-2 rounded-lg bg-white/5 flex items-center gap-3 border border-white/5 transition-all duration-300';
         el.innerHTML = `<div class="w-8 h-8 rounded bg-white/10 flex items-center justify-center shrink-0"><i class="fa-regular fa-image text-slate-300 text-xs"></i></div>
@@ -806,15 +812,23 @@ class UploadQueue {
         const item = this.queue[idx];
         if (item.status === 'uploading') item.controller.abort();
         this.queue.splice(idx, 1);
-        if(item.element) item.element.remove();
+        if (item.element) item.element.remove();
         if (item.status === 'uploading') { this.isProcessing = false; setTimeout(() => this.process(), 300); }
-        if (elements.queueList && elements.queueList.children.length === 0) elements.queueContainer.classList.add('translate-y-4', 'opacity-0');
+        if (elements.queueList && elements.queueList.children.length === 0) {
+            elements.queueContainer.classList.add('translate-y-4', 'opacity-0');
+            // Disable pointer events when hidden
+            elements.queueContainer.classList.remove('pointer-events-auto');
+        }
     }
     clearCompleted() {
         const pending = this.queue.filter(i => i.status === 'pending' || i.status === 'uploading');
         this.queue.forEach(i => { if ((i.status === 'success' || i.status === 'error') && i.element) i.element.remove(); });
         this.queue = pending;
-        if (this.queue.length === 0 && elements.queueContainer) elements.queueContainer.classList.add('translate-y-4', 'opacity-0');
+        if (this.queue.length === 0 && elements.queueContainer) {
+            elements.queueContainer.classList.add('translate-y-4', 'opacity-0');
+            // Disable pointer events when hidden
+            elements.queueContainer.classList.remove('pointer-events-auto');
+        }
     }
     async process() {
         if (this.isProcessing || this.queue.length === 0) return;
@@ -849,9 +863,9 @@ class UploadQueue {
         const bar = item.element.querySelector('.progress-bar');
         const txt = item.element.querySelector('.status-text');
         const btn = item.element.querySelector('button');
-        if(status === 'uploading') { txt.innerText = '...'; bar.style.width = progress+'%'; }
-        if(status === 'success') { txt.innerText = 'Done'; bar.style.width = '100%'; txt.className += ' text-emerald-400'; if(btn) btn.remove(); }
-        if(status === 'error') { txt.innerText = 'Err'; bar.style.width = '100%'; bar.className = 'progress-bar bg-rose-400 h-full'; }
+        if (status === 'uploading') { txt.innerText = '...'; bar.style.width = progress + '%'; }
+        if (status === 'success') { txt.innerText = 'Done'; bar.style.width = '100%'; txt.className += ' text-emerald-400'; if (btn) btn.remove(); }
+        if (status === 'error') { txt.innerText = 'Err'; bar.style.width = '100%'; bar.className = 'progress-bar bg-rose-400 h-full'; }
     }
     addToGallery(asset) {
         const mapped = { id: asset.wp_media_id || Math.random(), urlFull: asset.url_full, urlThumb: asset.url_thumbnail || asset.url_full, title: asset.title, fileName: asset.file_name, type: asset.mime_type, date: new Date().toISOString() };
@@ -863,7 +877,7 @@ class UploadQueue {
 const uploader = new UploadQueue();
 
 function toggleLoader(show) {
-    if(!elements.loader) return;
+    if (!elements.loader) return;
     show ? (elements.loader.classList.remove('hidden'), elements.loader.classList.add('flex')) : (elements.loader.classList.add('hidden'), elements.loader.classList.remove('flex'));
 }
 
@@ -874,12 +888,12 @@ function submitUpload() {
 
 function initGlobalListeners() {
     document.addEventListener('dragenter', () => elements.dragOverlay && elements.dragOverlay.classList.remove('hidden'));
-    document.addEventListener('dragleave', (e) => { if(e.relatedTarget === null && elements.dragOverlay) elements.dragOverlay.classList.add('hidden'); });
+    document.addEventListener('dragleave', (e) => { if (e.relatedTarget === null && elements.dragOverlay) elements.dragOverlay.classList.add('hidden'); });
     document.addEventListener('dragover', (e) => e.preventDefault());
     document.addEventListener('drop', (e) => {
-        e.preventDefault(); 
-        if(elements.dragOverlay) elements.dragOverlay.classList.add('hidden');
-        if(e.dataTransfer.files.length) uploader.add(e.dataTransfer.files);
+        e.preventDefault();
+        if (elements.dragOverlay) elements.dragOverlay.classList.add('hidden');
+        if (e.dataTransfer.files.length) uploader.add(e.dataTransfer.files);
     });
     document.addEventListener('keydown', (e) => {
         if (elements.lightbox && !elements.lightbox.classList.contains('hidden')) {
@@ -888,14 +902,14 @@ function initGlobalListeners() {
             if (e.key === 'ArrowLeft') prevImage();
         }
     });
-    if(elements.lightbox) {
+    if (elements.lightbox) {
         elements.lightbox.addEventListener('click', (e) => { if (e.target === elements.lightbox) closeLightbox(); });
-        elements.lightbox.addEventListener('touchstart', (e) => { state.touchStartX = e.changedTouches[0].screenX; state.touchStartY = e.changedTouches[0].screenY; }, {passive: true});
+        elements.lightbox.addEventListener('touchstart', (e) => { state.touchStartX = e.changedTouches[0].screenX; state.touchStartY = e.changedTouches[0].screenY; }, { passive: true });
         elements.lightbox.addEventListener('touchend', (e) => {
             const deltaX = e.changedTouches[0].screenX - state.touchStartX;
             const deltaY = e.changedTouches[0].screenY - state.touchStartY;
             if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) deltaX < 0 ? nextImage() : prevImage();
             else if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50 && deltaY > 0) closeLightbox();
-        }, {passive: true});
+        }, { passive: true });
     }
 }
