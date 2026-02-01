@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Profile | Lumina Host{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8">
+    <div class="glass-panel rounded-2xl p-8 shadow-xl border border-white/10">
+        <h1 class="text-2xl font-bold text-white mb-2 tracking-tight">Profile</h1>
+        <p class="text-slate-400 text-sm mb-6">Account and API token management.</p>
+        <dl class="space-y-3 text-sm">
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <dt class="text-slate-400">Username</dt>
+                <dd class="text-white font-medium">{{ current_user.username }}</dd>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <dt class="text-slate-400">Email</dt>
+                <dd class="text-white">{{ current_user.email }}</dd>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <dt class="text-slate-400">Role</dt>
+                <dd class="text-white">{{ current_user.role }}</dd>
+            </div>
+        </dl>
+        <p class="mt-6">
+            <a href="{{ url_for('index') }}" class="text-emerald-400 hover:text-emerald-300 text-sm">Back to gallery</a>
+            {% if current_user.role == 'admin' %}
+                &middot; <a href="{{ url_for('admin_list_users') }}" class="text-indigo-400 hover:text-indigo-300 text-sm">Manage users</a>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="glass-panel rounded-2xl p-8 shadow-xl border border-white/10">
+        <h2 class="text-xl font-bold text-white mb-2">API tokens</h2>
+        <p class="text-slate-400 text-sm mb-6">Create tokens to access the API. Store them securely; the full token is shown only once.</p>
+
+        <div class="mb-6">
+            <button type="button" id="create-token-btn" class="px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/30 transition-colors text-sm font-medium">
+                <i class="fa-solid fa-plus mr-2"></i>Create token
+            </button>
+        </div>
+
+        <div id="token-list" class="space-y-3">
+            <p id="token-list-empty" class="text-slate-500 text-sm">Loading...</p>
+        </div>
+
+        <div id="new-token-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="glass-panel rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/10">
+                <h3 class="text-lg font-semibold text-white mb-4">New API token</h3>
+                <p id="new-token-value" class="mb-4 p-3 rounded-lg bg-slate-800/80 text-emerald-400 font-mono text-sm break-all"></p>
+                <p class="text-slate-400 text-xs mb-4">Store this token securely. It will not be shown again.</p>
+                <button type="button" id="new-token-close" class="w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+    const listEl = document.getElementById('token-list');
+    const emptyEl = document.getElementById('token-list-empty');
+    const createBtn = document.getElementById('create-token-btn');
+    const modal = document.getElementById('new-token-modal');
+    const tokenValueEl = document.getElementById('new-token-value');
+    const modalClose = document.getElementById('new-token-close');
+
+    function loadTokens() {
+        fetch('/api/tokens', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.tokens && data.tokens.length) {
+                    emptyEl.classList.add('hidden');
+                    listEl.innerHTML = data.tokens.map(t => `
+                        <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-white/5 border border-white/10">
+                            <div>
+                                <span class="text-white font-medium">${t.name || 'Unnamed'}</span>
+                                <span class="text-slate-500 text-xs ml-2">Created ${t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</span>
+                            </div>
+                            <button type="button" data-id="${t.id}" class="revoke-token text-rose-400 hover:text-rose-300 text-sm">Revoke</button>
+                        </div>
+                    `).join('');
+                    listEl.querySelectorAll('.revoke-token').forEach(btn => {
+                        btn.addEventListener('click', () => revokeToken(parseInt(btn.dataset.id, 10)));
+                    });
+                } else {
+                    emptyEl.textContent = 'No API tokens yet.';
+                    emptyEl.classList.remove('hidden');
+                    listEl.querySelectorAll('.flex.items-center').forEach(n => n.remove());
+                }
+            })
+            .catch(() => { emptyEl.textContent = 'Failed to load tokens.'; emptyEl.classList.remove('hidden'); });
+    }
+
+    function revokeToken(id) {
+        if (!confirm('Revoke this token? It will stop working immediately.')) return;
+        fetch('/api/tokens/' + id, {
+            method: 'DELETE',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            credentials: 'same-origin'
+        }).then(r => {
+            if (r.ok) loadTokens();
+        });
+    }
+
+    createBtn.addEventListener('click', () => {
+        fetch('/api/tokens', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name: 'New token' })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.token) {
+                    tokenValueEl.textContent = data.token;
+                    modal.classList.remove('hidden');
+                }
+            });
+    });
+
+    modalClose.addEventListener('click', () => { modal.classList.add('hidden'); loadTokens(); });
+    loadTokens();
+})();
+</script>
+{% endblock %}

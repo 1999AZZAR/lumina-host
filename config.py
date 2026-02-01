@@ -44,6 +44,23 @@ class Config:
     # Upload
     allowed_extensions: frozenset[str] = frozenset({'png', 'jpg', 'jpeg', 'gif', 'webp'})
 
+    # AMT
+    enable_registration: bool = field(
+        default_factory=lambda: os.getenv('ENABLE_REGISTRATION', '').lower() in ('1', 'true', 'yes')
+    )
+    api_token_expiry_days: int = field(
+        default_factory=lambda: int(os.getenv('API_TOKEN_EXPIRY_DAYS', '90') or '90')
+    )
+    admin_username: str = field(
+        default_factory=lambda: (os.getenv('ADMIN_USERNAME') or 'admin').strip()
+    )
+    admin_email: str = field(
+        default_factory=lambda: (os.getenv('ADMIN_EMAIL') or 'admin@localhost').strip()
+    )
+    admin_password: str | None = field(
+        default_factory=lambda: (os.getenv('ADMIN_PASSWORD') or '').strip() or None
+    )
+
     @property
     def max_content_length_bytes(self) -> int:
         return self.max_content_length_mb * 1024 * 1024

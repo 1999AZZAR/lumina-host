@@ -41,7 +41,11 @@ class MediaService:
     """Orchestrates upload to WordPress and local DB, and bulk delete."""
 
     @staticmethod
-    def upload_files(valid: list[tuple[str, bytes, str]]) -> tuple[list[dict[str, Any]], list[str]]:
+    def upload_files(
+        valid: list[tuple[str, bytes, str]],
+        user_id: int | None = None,
+        tenant_id: int | None = None,
+    ) -> tuple[list[dict[str, Any]], list[str]]:
         """Upload files in parallel. Returns (uploaded_assets, failed_filenames)."""
         uploaded: list[dict[str, Any]] = []
         failed: list[str] = []
@@ -57,15 +61,19 @@ class MediaService:
             for future in as_completed(futures):
                 filename, asset_data = future.result()
                 if asset_data:
-                    database.add_asset(asset_data)
+                    database.add_asset(asset_data, user_id=user_id, tenant_id=tenant_id)
                     uploaded.append(asset_data)
                 else:
                     failed.append(filename)
         return (uploaded, failed)
 
     @staticmethod
-    def delete_assets(ids: list[int]) -> tuple[int, int]:
+    def delete_assets(
+        ids: list[int],
+        tenant_id: int | None = None,
+        user_id: int | None = None,
+    ) -> tuple[int, int]:
         """Delete assets locally and on WordPress. Returns (local_deleted, remote_deleted)."""
-        wp_ids = database.delete_assets(ids)
+        wp_ids = database.delete_assets(ids, tenant_id=tenant_id, user_id=user_id)
         remote_deleted = sum(1 for wp_id in wp_ids if wordpress_api.delete_media(wp_id))
-        return (len(ids), remote_deleted)
+        return (len(wp_ids), remote_deleted)

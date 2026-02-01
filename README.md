@@ -13,10 +13,11 @@ A decoupled image gallery application that leverages Headless WordPress for robu
 * Glassmorphic UI: Modern, dark-themed interface designed with Tailwind CSS.
 * Mock Mode: Built-in simulation for testing without a live WordPress instance.
 * Security First: Sanitized filenames and environment-variable based configuration.
+* AMT (Authentication, Authorization, Multi-Tenancy): User login, role-based access, tenant isolation, and API token authentication.
 
 ## Technical Stack
 
-* Backend: Python 3, Flask
+* Backend: Python 3, Flask, Flask-Login
 * Database: SQLite
 * Frontend: Tailwind CSS, Font Awesome
 * Integration: WordPress REST API
@@ -59,7 +60,20 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    WP_API_URL=https://your-site.com/wp-json/wp/v2/media
    WP_USER=your_username
    WP_PASS=your_application_password
+   FLASK_SECRET_KEY=generate-a-random-string-here
    ```
+
+   **AMT (optional):** To enable login and per-user/tenant assets, set in `.env`. The app creates a default tenant and admin user at startup when `ADMIN_PASSWORD` is set (no migration required):
+
+   ```env
+   ENABLE_REGISTRATION=0
+   API_TOKEN_EXPIRY_DAYS=90
+   ADMIN_USERNAME=admin
+   ADMIN_EMAIL=admin@localhost
+   ADMIN_PASSWORD=secret
+   ```
+
+   Log in at `/login` with `ADMIN_USERNAME` / `ADMIN_PASSWORD`. To assign existing gallery assets to the default tenant (e.g. after upgrading), run once: `python -m migrations.add_user_system`.
 
 5. Run the Application:
 
@@ -67,7 +81,19 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    python app.py
    ```
 
-   Visit `http://127.0.0.1:5000` in your browser.
+   Visit `http://127.0.0.1:5050` in your browser. Log in at `/login` to upload and delete assets. Guests can browse; upload and delete require authentication.
+
+## Docker
+
+Using Docker Compose (see [docker-compose.yml](docker-compose.yml)):
+
+```bash
+cp example.env .env
+# Edit .env: set FLASK_SECRET_KEY, WP_* if needed, and ADMIN_USERNAME/ADMIN_EMAIL/ADMIN_PASSWORD for AMT.
+docker compose up -d
+```
+
+The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`. To assign existing gallery assets to the default tenant, run once: `docker compose exec web python -m migrations.add_user_system`.
 
 ## Contributing
 

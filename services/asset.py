@@ -15,6 +15,14 @@ class AssetService:
         page: int = 1,
         per_page: int = 20,
         search_query: str | None = None,
+        tenant_id: int | None = None,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """Return {'assets': list, 'has_more': bool}."""
-        return database.get_assets(page=page, per_page=per_page, search_query=search_query)
+        return database.get_assets(
+            page=page,
+            per_page=per_page,
+            search_query=search_query,
+            tenant_id=tenant_id,
+            user_id=user_id,
+        )

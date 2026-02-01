@@ -29,6 +29,20 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : '';
 }
 
+// Redirect to login on 401; show message on 403
+function handleAuthResponse(res, data) {
+    if (res.status === 401) {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+        return true;
+    }
+    if (res.status === 403) {
+        if (data && data.error) alert(data.error);
+        else alert('Access denied.');
+        return true;
+    }
+    return false;
+}
+
 // Download filename with extension (prefer file_name, else title + ext from mime)
 function getDownloadFilename(asset) {
     const hasExt = (s) => s && /\.\w+$/.test(s);
@@ -78,6 +92,7 @@ async function loadMore() {
     try {
         const res = await fetch(`/api/assets?page=${state.currentPage + 1}&q=${encodeURIComponent(state.searchQuery)}`);
         const data = await res.json();
+        if (handleAuthResponse(res, data)) return;
         if (data.assets.length > 0) {
             data.assets.forEach(asset => {
                 const mappedAsset = {
@@ -241,9 +256,11 @@ async function performDelete() {
     try {
         const res = await fetch('/delete', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest'},
             body: JSON.stringify({ ids: Array.from(state.selectedIds) })
         });
+        const data = await res.json().catch(() => ({}));
+        if (handleAuthResponse(res, data)) return;
         if (res.ok) {
             state.selectedIds.forEach(id => {
                 const card = document.querySelector(`.asset-card[data-id="${id}"]`);
@@ -387,11 +404,13 @@ class UploadQueue {
         try {
             const res = await fetch('/upload', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() }, signal: item.controller.signal });
             const data = await res.json();
+            if (res.status === 401) { window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname); return; }
+            if (res.status === 403) { this.updateUI(item, 'error', 0); item.status = 'error'; if (data.error) alert(data.error); return; }
             if (res.ok) {
                 this.updateUI(item, 'success', 100);
                 if (data.assets) this.addToGallery(data.assets[0]);
                 item.status = 'success';
-            } else { throw new Error(data.error); }
+            } else { throw new Error(data.error || 'Upload failed'); }
         } catch (e) {
             if (e.name !== 'AbortError') { this.updateUI(item, 'error', 0); item.status = 'error'; }
         }

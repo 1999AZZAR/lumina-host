@@ -1,11 +1,15 @@
+# Lumina Host: image gallery with WordPress media and AMT (auth/multi-tenancy).
+# Copy example.env to .env and set FLASK_SECRET_KEY, WP_* (optional), and for AMT:
+# ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD. Default admin is created at startup.
+
 services:
   web:
     build: .
     ports:
       - "5050:5050"
     volumes:
-      - ./gallery.db:/app/gallery.db # Persist database
-      - ./.env:/app/.env # Mount env file
+      - ./gallery.db:/app/gallery.db
+      - ./.env:/app/.env
     environment:
       - REDIS_URL=redis://redis:6379/0
     depends_on:
