@@ -12,24 +12,86 @@
 <div class="flex flex-col md:flex-row gap-8 min-h-[80vh]">
     <!-- Sidebar (Unified Navigation) - Collapsible -->
     <aside id="main-sidebar"
-        class="fixed md:sticky top-16 left-0 h-[calc(100vh-4rem)] md:h-auto w-72 md:w-72 flex-shrink-0 flex flex-col gap-4 bg-slate-900 md:bg-transparent p-4 md:p-0 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
+        class="fixed md:sticky top-16 left-0 h-[calc(100vh-4rem)] md:h-auto w-72 md:w-72 flex-shrink-0 flex flex-col gap-4 bg-slate-900 md:bg-transparent p-4 md:p-0 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-40 overflow-y-auto"
+        role="navigation" aria-label="Main navigation sidebar">
+
+        {% if current_user.is_authenticated %}
+        <!-- User Account Panel -->
+        <div class="glass-panel p-4 rounded-2xl shadow-lg">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fa-solid fa-user-circle text-emerald-400/70 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Account</span>
+            </div>
+            <div class="flex flex-col gap-2">
+                <a href="{{ url_for('profile') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/30 transition-all duration-200 text-sm font-medium group">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <span class="flex-1 text-white">{{ current_user.username }}</span>
+                    <i
+                        class="fa-solid fa-chevron-right text-xs text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
+                </a>
+                <form action="{{ url_for('logout') }}" method="post" class="w-full">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-400/30 transition-all duration-200 text-sm font-medium group w-full">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </div>
+                        <span class="flex-1 text-left text-slate-300 group-hover:text-rose-400 transition-colors">Log
+                            out</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="hidden md:block h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        {% else %}
+        <!-- Login Panel (for non-authenticated users) -->
+        <div class="glass-panel p-4 rounded-2xl shadow-lg">
+            <a href="{{ url_for('login') }}"
+                class="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/30 text-sm font-medium transition-all duration-200 group">
+                <i class="fa-solid fa-right-to-bracket group-hover:translate-x-1 transition-transform"></i>
+                <span>Log in</span>
+            </a>
+        </div>
+
+        <!-- Divider -->
+        <div class="hidden md:block h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        {% endif %}
+
         <!-- Search Panel -->
-        <div class="glass-panel p-4 rounded-2xl">
+        <div class="glass-panel p-4 rounded-2xl shadow-lg">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-magnifying-glass text-emerald-400/70 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Search</span>
+            </div>
             <div
-                class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 focus-within:border-emerald-400/30 transition-colors">
-                <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                class="flex items-center bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:bg-white/10 focus-within:border-emerald-400/30 transition-all duration-200">
+                <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
                 <input type="text" id="searchInput" placeholder="Search assets..."
                     class="bg-transparent border-none outline-none text-sm text-white placeholder-slate-500 ml-3 w-full"
-                    oninput="handleSearch(this.value)">
+                    oninput="handleSearch(this.value)" aria-label="Search gallery assets">
             </div>
         </div>
 
         {% if current_user.is_authenticated %}
+        <!-- Divider -->
+        <div class="hidden md:block h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+
         <!-- Actions Panel -->
-        <div class="glass-panel p-4 rounded-2xl">
+        <div class="glass-panel p-4 rounded-2xl shadow-lg">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fa-solid fa-bolt text-indigo-400/70 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Actions</span>
+            </div>
             <div class="flex flex-col gap-2">
                 <button id="selectModeBtn" onclick="toggleSelectionMode()"
-                    class="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/30 px-4 py-3 rounded-xl transition-all text-sm font-medium group">
+                    class="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/30 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium group">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
@@ -37,11 +99,12 @@
                         </div>
                         <span id="selectBtnText">Select Mode</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    <i
+                        class="fa-solid fa-chevron-right text-xs text-slate-500 group-hover:text-indigo-400 transition-colors"></i>
                 </button>
 
                 <button onclick="document.getElementById('uploadInput').click()"
-                    class="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/30 px-4 py-3 rounded-xl transition-all text-sm font-medium group">
+                    class="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/30 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium group">
                     <div class="flex items-center gap-3">
                         <div
                             class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
@@ -49,20 +112,26 @@
                         </div>
                         <span>Upload Files</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    <i
+                        class="fa-solid fa-chevron-right text-xs text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
                 </button>
             </div>
         </div>
+
+        <!-- Divider -->
+        <div class="hidden md:block h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
         {% endif %}
 
         <!-- Library Panel -->
-        <div class="glass-panel p-5 rounded-2xl">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-white tracking-wide">Library</h2>
+        <div class="glass-panel p-5 rounded-2xl shadow-lg">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="fa-solid fa-layer-group text-emerald-400/70 text-xs"></i>
+                <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Library</h2>
             </div>
-            <nav class="flex flex-col gap-1">
+            <nav class="flex flex-col gap-1" role="navigation" aria-label="Library navigation">
                 <button onclick="switchView(null)" id="nav-all"
-                    class="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-white/10 text-white font-medium shadow-inner border border-white/5">
+                    class="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 bg-white/10 text-white font-medium shadow-inner border border-white/5"
+                    aria-label="View all photos">
                     <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
                         <i class="fa-regular fa-images"></i>
                     </div>
@@ -72,17 +141,23 @@
         </div>
 
         {% if current_user.is_authenticated %}
+        <!-- Divider -->
+        <div class="hidden md:block h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
         <!-- Albums Panel -->
-        <div class="glass-panel p-5 rounded-2xl flex-1">
+        <div class="glass-panel p-5 rounded-2xl flex-1 shadow-lg">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-white tracking-wide">Albums</h2>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-folder-tree text-indigo-400/70 text-xs"></i>
+                    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Albums</h2>
+                </div>
                 <button onclick="openCreateAlbumModal()"
-                    class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
-                    title="New Album">
-                    <i class="fa-solid fa-plus text-xs"></i>
+                    class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all duration-200 text-slate-400 hover:text-white border border-white/10 hover:border-emerald-400/30 group"
+                    title="New Album" aria-label="Create new album">
+                    <i class="fa-solid fa-plus text-xs group-hover:rotate-90 transition-transform duration-200"></i>
                 </button>
             </div>
-            <nav id="album-list" class="flex flex-col gap-1 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+            <nav id="album-list" class="flex flex-col gap-1 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar"
+                role="navigation" aria-label="Albums navigation">
                 <!-- Albums injected here -->
                 <div class="text-center py-8 text-slate-500 text-sm">Loading...</div>
             </nav>
@@ -323,6 +398,8 @@
     function toggleSidebar() {
         const sidebar = document.getElementById('main-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
+        const hamburger = document.getElementById('hamburger-icon');
+        const toggleBtn = document.getElementById('sidebar-toggle');
         const isHidden = sidebar.classList.contains('-translate-x-full');
 
         if (isHidden) {
@@ -331,14 +408,118 @@
             sidebar.classList.add('translate-x-0');
             overlay.classList.remove('opacity-0', 'pointer-events-none');
             overlay.classList.add('opacity-100', 'pointer-events-auto');
+            hamburger?.classList.add('active');
+            toggleBtn?.setAttribute('aria-expanded', 'true');
         } else {
             // Hide sidebar
             sidebar.classList.add('-translate-x-full');
             sidebar.classList.remove('translate-x-0');
             overlay.classList.add('opacity-0', 'pointer-events-none');
             overlay.classList.remove('opacity-100', 'pointer-events-auto');
+            hamburger?.classList.remove('active');
+            toggleBtn?.setAttribute('aria-expanded', 'false');
         }
     }
+
+    // Update breadcrumb navigation
+    function updateBreadcrumb(albumId = null) {
+        const breadcrumbContainer = document.getElementById('breadcrumb-container');
+        if (!breadcrumbContainer) return;
+
+        if (!albumId) {
+            breadcrumbContainer.innerHTML = `
+                <div class="breadcrumb-item">
+                    <i class="fa-solid fa-images text-emerald-400/80 text-xs"></i>
+                    <span class="breadcrumb-current">All Photos</span>
+                </div>
+            `;
+            breadcrumbContainer.classList.remove('hidden');
+            return;
+        }
+
+        // Build breadcrumb path for album
+        const album = state.albums.find(a => a.id === albumId);
+        if (!album) return;
+
+        const path = [];
+        let current = album;
+        while (current) {
+            path.unshift(current);
+            current = current.parent_id ? state.albums.find(a => a.id === current.parent_id) : null;
+        }
+
+        let breadcrumbHTML = `
+            <div class="breadcrumb-item">
+                <a href="#" onclick="event.preventDefault(); switchView(null);">
+                    <i class="fa-solid fa-images text-xs"></i>
+                    All Photos
+                </a>
+                <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
+            </div>
+        `;
+
+        path.forEach((item, index) => {
+            if (index === path.length - 1) {
+                breadcrumbHTML += `
+                    <div class="breadcrumb-item">
+                        <i class="fa-regular fa-folder text-indigo-400/80 text-xs"></i>
+                        <span class="breadcrumb-current">${item.name}</span>
+                    </div>
+                `;
+            } else {
+                breadcrumbHTML += `
+                    <div class="breadcrumb-item">
+                        <a href="#" onclick="event.preventDefault(); switchView(${item.id});">
+                            <i class="fa-regular fa-folder text-xs"></i>
+                            ${item.name}
+                        </a>
+                        <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
+                    </div>
+                `;
+            }
+        });
+
+        breadcrumbContainer.innerHTML = breadcrumbHTML;
+        breadcrumbContainer.classList.remove('hidden');
+    }
+
+    // Swipe gestures for mobile sidebar
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    function handleSwipe() {
+        const sidebar = document.getElementById('main-sidebar');
+        if (!sidebar) return;
+
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        const isHidden = sidebar.classList.contains('-translate-x-full');
+
+        // Check if horizontal swipe is dominant
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            // Swipe right to open (from left edge)
+            if (diffX > 50 && isHidden && touchStartX < 50) {
+                toggleSidebar();
+            }
+            // Swipe left to close
+            else if (diffX < -50 && !isHidden) {
+                toggleSidebar();
+            }
+        }
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
+    }, { passive: true });
 
     // Close sidebar when clicking overlay
     document.getElementById('sidebar-overlay')?.addEventListener('click', toggleSidebar);
@@ -351,6 +532,11 @@
                 toggleSidebar();
             }
         }
+    });
+
+    // Initialize breadcrumb on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateBreadcrumb(state.currentAlbumId);
     });
 </script>
 

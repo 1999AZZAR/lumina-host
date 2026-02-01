@@ -71,6 +71,106 @@
             z-index: -5;
             pointer-events: none;
         }
+
+        /* Animated Hamburger Menu */
+        .hamburger {
+            width: 20px;
+            height: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hamburger span {
+            display: block;
+            position: absolute;
+            height: 2px;
+            width: 100%;
+            background: rgba(148, 163, 184, 0.9);
+            border-radius: 2px;
+            opacity: 1;
+            left: 0;
+            transform: rotate(0deg);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hamburger span:nth-child(1) {
+            top: 0px;
+        }
+
+        .hamburger span:nth-child(2),
+        .hamburger span:nth-child(3) {
+            top: 7px;
+        }
+
+        .hamburger span:nth-child(4) {
+            top: 14px;
+        }
+
+        .hamburger.active span:nth-child(1),
+        .hamburger.active span:nth-child(4) {
+            opacity: 0;
+            width: 0;
+            left: 50%;
+        }
+
+        .hamburger.active span:nth-child(2) {
+            transform: rotate(45deg);
+            background: rgba(248, 113, 113, 0.9);
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg);
+            background: rgba(248, 113, 113, 0.9);
+        }
+
+        .hamburger:hover span {
+            background: rgba(52, 211, 153, 0.9);
+        }
+
+        .hamburger.active:hover span:nth-child(2),
+        .hamburger.active:hover span:nth-child(3) {
+            background: rgba(251, 146, 60, 0.9);
+        }
+
+        /* Breadcrumb Navigation */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .breadcrumb-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s ease;
+        }
+
+        .breadcrumb-item a {
+            color: rgba(52, 211, 153, 0.8);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+        }
+
+        .breadcrumb-item a:hover {
+            color: rgba(52, 211, 153, 1);
+            background: rgba(52, 211, 153, 0.1);
+        }
+
+        .breadcrumb-separator {
+            color: rgba(148, 163, 184, 0.4);
+            font-size: 0.75rem;
+        }
+
+        .breadcrumb-current {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
     </style>
     <script>
         tailwind.config = {
@@ -116,49 +216,36 @@
     <nav class="fixed top-0 w-full z-50 glass-panel border-b-0 shadow-lg bg-slate-900/40">
         <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                        <div
-                            class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <i class="fa-solid fa-layer-group text-white text-sm"></i>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="font-semibold text-lg tracking-wide text-white/90 leading-tight">Lumina
-                                Host</span>
-                            <span class="text-[10px] text-slate-400 leading-tight hidden sm:block">Securely hosted on
-                                WordPress CDN</span>
-                        </div>
-                    </a>
+                <!-- Logo (Left) -->
+                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-layer-group text-white text-sm"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-lg tracking-wide text-white/90 leading-tight">Lumina
+                            Host</span>
+                        <span class="text-[10px] text-slate-400 leading-tight hidden sm:block">Securely hosted on
+                            WordPress CDN</span>
+                    </div>
+                </a>
 
-                    <!-- Sidebar Toggle Button -->
-                    <button id="sidebar-toggle" onclick="toggleSidebar()"
-                        class="ml-2 w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
-                        title="Toggle Sidebar">
-                        <i class="fa-solid fa-bars text-sm"></i>
-                    </button>
+                <!-- Breadcrumb Navigation (Center) --><div id="breadcrumb-container"
+                    class="hidden md:flex breadcrumb flex-1 mx-4">
+                    <!-- Breadcrumbs injected dynamically -->
                 </div>
 
-                <div class="flex items-center gap-2">
-                    {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('profile') }}"
-                        class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-sm text-white/90 transition-colors">
-                        <i class="fa-solid fa-user text-emerald-400"></i>
-                        <span class="hidden sm:inline">{{ current_user.username }}</span>
-                    </a>
-                    <form action="{{ url_for('logout') }}" method="post" class="inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit"
-                            class="px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-rose-500/20 hover:border-rose-400/30 text-slate-400 hover:text-rose-400 text-sm transition-colors">
-                            <i class="fa-solid fa-right-from-bracket sm:hidden"></i>
-                            <span class="hidden sm:inline">Log out</span>
-                        </button>
-                    </form>
-                    {% else %}
-                    <a href="{{ url_for('login') }}"
-                        class="px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/30 text-sm font-medium transition-colors">Log
-                        in</a>
-                    {% endif %}
-                </div>
+                <!-- Hamburger Menu (Right) -->
+                <button id="sidebar-toggle" onclick="toggleSidebar()"
+                    class="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all duration-300"
+                    title="Toggle Sidebar" aria-label="Toggle navigation sidebar" aria-expanded="false">
+                    <div class="hamburger" id="hamburger-icon">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </button>
             </div>
         </div>
     </nav>

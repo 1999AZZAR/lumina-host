@@ -193,6 +193,11 @@ async function switchView(albumId) {
     document.getElementById('nav-all').className = `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${!albumId ? 'bg-white/10 text-white font-medium shadow-inner border border-white/5' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}`;
     renderAlbumsList();
 
+    // Update breadcrumb navigation
+    if (typeof updateBreadcrumb === 'function') {
+        updateBreadcrumb(albumId);
+    }
+
     // Update Header Title
     const titleEl = document.getElementById('page-title');
     const descEl = document.getElementById('page-desc');
