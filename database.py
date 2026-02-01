@@ -90,12 +90,15 @@ def init_db():
                 description TEXT,
                 user_id INTEGER REFERENCES users(id),
                 tenant_id INTEGER REFERENCES tenants(id),
+                parent_id INTEGER REFERENCES albums(id) ON DELETE SET NULL,
+                is_public INTEGER NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_user ON albums(user_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_tenant ON albums(tenant_id);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_parent ON albums(parent_id);')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS api_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -452,6 +455,7 @@ def update_album(
         
         sql = f'UPDATE albums SET {", ".join(updates)} WHERE id = ?'
         cursor.execute(sql, tuple(params))
+        updated = cursor.rowcount > 0
         
         # Cascade visibility if changed
         if is_public is not None:
@@ -463,7 +467,7 @@ def update_album(
             _invalidate_assets_cache()
             
         conn.commit()
-        return cursor.rowcount > 0
+        return updated
 
 
 def delete_album(album_id: int) -> bool:
