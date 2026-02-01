@@ -95,6 +95,14 @@ docker compose up -d
 
 The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`. To assign existing gallery assets to the default tenant, run once: `docker compose exec web python -m migrations.add_user_system`.
 
+## Production
+
+For production deployments:
+
+* **HTTPS:** Serve the app behind HTTPS. Set `SESSION_COOKIE_SECURE` via environment (session cookies are sent only over HTTPS when not in debug).
+* **Rate limits:** Set `RATELIMIT_STORAGE_URL` (e.g. to your Redis URL) so Flask-Limiter uses Redis instead of in-memory storage; otherwise limits are per-process and reset on restart.
+* **Admin password:** Use a strong `ADMIN_PASSWORD` (at least 8 characters, with letters and digits). `ADMIN_USERNAME` and `ADMIN_EMAIL` must be valid (alphanumeric/underscore username, valid email).
+
 ## Contributing
 
 Please see CONTRIBUTING.md for details on our code of conduct, and the process for submitting pull requests to us.

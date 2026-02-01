@@ -1,9 +1,16 @@
 """Request and input validation for Lumina Host."""
 
+import re
 from typing import Any
 
 # Max length for search query (chars)
 SEARCH_QUERY_MAX_LEN = 200
+
+USERNAME_MAX_LEN = 64
+EMAIL_MAX_LEN = 256
+USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]+$')
+PASSWORD_MIN_LEN = 8
+MAX_ID = 2**31 - 1
 
 # MIME types allowed per extension (subset; client can lie so we only sanity-check)
 # Include common variants (e.g. image/jpg) and allow octet-stream when extension is valid (mobile often sends that)
@@ -16,6 +23,56 @@ EXTENSION_MIME: dict[str, set[str]] = {
 }
 # When extension is allowed but MIME is generic/empty, still accept (extension is primary check)
 GENERIC_MIMETYPES = frozenset({'application/octet-stream', 'application/unknown', ''})
+
+
+def validate_username(s: str | None) -> str:
+    """Validate username: strip, length cap, alphanumeric and underscore only. Raises ValueError if invalid."""
+    if s is None:
+        raise ValueError('Username is required.')
+    s = s.strip()[:USERNAME_MAX_LEN]
+    if not s:
+        raise ValueError('Username is required.')
+    if not USERNAME_RE.match(s):
+        raise ValueError('Username may only contain letters, numbers, and underscores.')
+    return s
+
+
+def validate_email_for_db(s: str | None) -> str:
+    """Validate and normalize email. Raises ValueError if invalid. Allows @localhost for dev."""
+    if s is None:
+        raise ValueError('Email is required.')
+    s = (s.strip())[:EMAIL_MAX_LEN]
+    if not s:
+        raise ValueError('Email is required.')
+    if '@' in s and s.split('@')[-1].lower() == 'localhost':
+        return s
+    from email_validator import validate_email as ve, EmailNotValidError
+    try:
+        info = ve(s)
+        return info.normalized
+    except EmailNotValidError as e:
+        raise ValueError('Invalid email address.') from e
+
+
+def validate_password_strength(password: str) -> None:
+    """Require min length and at least one letter and one digit. Raises ValueError if weak."""
+    if not password or len(password) < PASSWORD_MIN_LEN:
+        raise ValueError(f'Password must be at least {PASSWORD_MIN_LEN} characters.')
+    if not re.search(r'[a-zA-Z]', password):
+        raise ValueError('Password must contain at least one letter.')
+    if not re.search(r'\d', password):
+        raise ValueError('Password must contain at least one digit.')
+
+
+def validate_positive_id(value: Any, max_val: int = MAX_ID) -> int:
+    """Validate positive integer ID. Raises ValueError if invalid."""
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        raise ValueError('Invalid id.')
+    if n < 1 or n > max_val:
+        raise ValueError('Id out of range.')
+    return n
 
 
 def sanitize_search_query(raw: str | None) -> str:

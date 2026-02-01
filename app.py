@@ -17,7 +17,15 @@ import database
 from auth import User, admin_required, get_current_tenant_id, get_current_user_id, login_required as auth_login_required
 from services import AssetService, MediaService
 from services.auth import authenticate_user, create_user as auth_create_user, generate_api_token, validate_api_token
-from validators import sanitize_search_query, validate_delete_ids, validate_file_extension_and_mime
+from validators import (
+    sanitize_search_query,
+    validate_delete_ids,
+    validate_file_extension_and_mime,
+    validate_username,
+    validate_email_for_db,
+    validate_password_strength,
+    validate_positive_id,
+)
 
 # Load environment variables
 load_dotenv()
@@ -32,6 +40,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = resolve_secret_key(_config)
 app.config['MAX_CONTENT_LENGTH'] = _config.max_content_length_bytes
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = _config.session_cookie_secure
+if _config.ratelimit_storage_url:
+    app.config['RATELIMIT_STORAGE_URL'] = _config.ratelimit_storage_url
 csrf = CSRFProtect(app)
 limiter = Limiter(key_func=get_remote_address, app=app, default_limits=['200 per day', '60 per hour'])
 
@@ -56,6 +69,12 @@ def ensure_default_admin() -> None:
     """Create default tenant and admin user at startup if missing and ADMIN_PASSWORD is set."""
     if not _config.admin_password:
         return
+    try:
+        admin_username = validate_username(_config.admin_username)
+        admin_email = validate_email_for_db(_config.admin_email)
+    except ValueError as e:
+        logger.warning("Skipping default admin: invalid ADMIN_USERNAME or ADMIN_EMAIL: %s", e)
+        return
     with database.get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT id FROM tenants LIMIT 1')
@@ -74,10 +93,10 @@ def ensure_default_admin() -> None:
             password_hash = hash_password(_config.admin_password)
             cursor.execute(
                 'INSERT INTO users (username, email, password_hash, role, tenant_id) VALUES (?, ?, ?, ?, ?)',
-                (_config.admin_username, _config.admin_email, password_hash, 'admin', tenant_id),
+                (admin_username, admin_email, password_hash, 'admin', tenant_id),
             )
             conn.commit()
-            logger.info("Created default admin user '%s' (id=%s)", _config.admin_username, cursor.lastrowid)
+            logger.info("Created default admin user '%s' (id=%s)", admin_username, cursor.lastrowid)
         else:
             admin_id = row['id']
             from services.auth import hash_password
@@ -87,7 +106,7 @@ def ensure_default_admin() -> None:
                 (password_hash, admin_id),
             )
             conn.commit()
-            logger.info("Updated password for admin user '%s' from ADMIN_PASSWORD.", _config.admin_username)
+            logger.info("Updated password for admin user '%s' from ADMIN_PASSWORD.", admin_username)
 
 
 @app.before_request
@@ -196,9 +215,9 @@ def allowed_file(filename: str | None) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@app.route('/health')
+@app.route('/health', methods=['GET'])
 def health():
-    """Health check for load balancers and monitoring. Returns 200 if DB (and Redis if configured) are OK."""
+    """Health check for load balancers and monitoring. GET only; minimal JSON."""
     try:
         with database.get_db_connection() as conn:
             conn.execute('SELECT 1').fetchone()
@@ -228,8 +247,8 @@ def login():
             next_url=next_url,
             enable_registration=_config.enable_registration,
         )
-    username = (request.form.get('username') or '').strip()
-    password = request.form.get('password') or ''
+    username = (request.form.get('username') or '').strip()[:64]
+    password = (request.form.get('password') or '')[:256]
     if not username or not password:
         flash('Username and password are required.')
         return render_template('login.html', next_url=request.form.get('next') or url_for('index'))
@@ -246,7 +265,9 @@ def login():
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    """Logout handler."""
+    """Logout handler. POST performs logout; GET redirects to index to prevent CSRF logout via link."""
+    if request.method != 'POST':
+        return redirect(url_for('index'))
     logout_user()
     flash('You have been logged out.')
     return redirect(url_for('index'))
@@ -261,24 +282,17 @@ def register():
         return redirect(url_for('index'))
     if request.method == 'GET':
         return render_template('register.html')
-    username = (request.form.get('username') or '').strip()[:64]
-    email = (request.form.get('email') or '').strip()[:256]
-    password = request.form.get('password') or ''
-    if not username or not email or not password:
-        flash('Username, email and password are required.')
-        return render_template('register.html')
     try:
-        from email_validator import validate_email as ve
-        ve(email)
-    except Exception:
-        flash('Invalid email address.')
+        username = validate_username(request.form.get('username'))
+        email = validate_email_for_db(request.form.get('email'))
+        validate_password_strength(request.form.get('password') or '')
+    except ValueError as e:
+        flash(str(e))
         return render_template('register.html')
-    if len(password) < 8:
-        flash('Password must be at least 8 characters.')
-        return render_template('register.html')
+    password = request.form.get('password') or ''
     user_id = auth_create_user(username, email, password, role='user', tenant_id=None)
     if not user_id:
-        flash('Username or email already in use.')
+        flash('Registration failed. Check your input or try logging in.')
         return render_template('register.html')
     flash('Account created. You can log in now.')
     return redirect(url_for('login'))
@@ -332,6 +346,10 @@ def revoke_token(token_id: int):
     user_id = get_current_user_id()
     if not user_id:
         return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        validate_positive_id(token_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     if database.revoke_api_token(token_id, user_id):
         return jsonify({'message': 'Token revoked.'})
     return jsonify({'error': 'Token not found or already revoked.'}), 404
@@ -353,29 +371,18 @@ def admin_list_users():
 def admin_create_user():
     """Admin: create user."""
     data = request.get_json(silent=True) or request.form
-    username = (data.get('username') or '').strip()[:64]
-    email = (data.get('email') or '').strip()[:256]
-    password = (data.get('password') or '')[:256]
     role = (data.get('role') or 'user').strip()[:16] or 'user'
     if role not in ('admin', 'user'):
         role = 'user'
-    if not username or not email or not password:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Username, email and password required.'}), 400
-        flash('Username, email and password required.')
-        return redirect(url_for('admin_list_users'))
     try:
-        from email_validator import validate_email as ve
-        ve(email)
-    except Exception:
+        username = validate_username(data.get('username'))
+        email = validate_email_for_db(data.get('email'))
+        password = data.get('password') or ''
+        validate_password_strength(password)
+    except ValueError as e:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Invalid email.'}), 400
-        flash('Invalid email.')
-        return redirect(url_for('admin_list_users'))
-    if len(password) < 8:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Password must be at least 8 characters.'}), 400
-        flash('Password must be at least 8 characters.')
+            return jsonify({'error': str(e)}), 400
+        flash(str(e))
         return redirect(url_for('admin_list_users'))
     user_id = auth_create_user(username, email, password, role=role, tenant_id=None)
     if not user_id:
@@ -394,6 +401,10 @@ def admin_create_user():
 @admin_required
 def admin_delete_user(user_id: int):
     """Admin: deactivate user (soft delete)."""
+    try:
+        validate_positive_id(user_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     from flask_login import current_user
     if current_user.id == user_id:
         return jsonify({'error': 'Cannot delete your own account.'}), 400
@@ -420,6 +431,7 @@ def index():
 
 
 @app.route('/api/assets')
+@limiter.limit('60 per hour')
 def get_assets_api():
     """API for Infinite Scroll & Search. Filtered by tenant/user when logged in."""
     try:

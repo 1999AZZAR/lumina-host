@@ -6,6 +6,10 @@ import logging
 import sqlite3
 from typing import Any
 
+def _token_hash(raw: str) -> str:
+    """SHA-256 hash of token for storage and lookup."""
+    return hashlib.sha256(raw.encode()).hexdigest()
+
 import redis
 
 from config import get_config
@@ -91,6 +95,18 @@ def init_db():
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);')
+        cursor.execute('PRAGMA table_info(api_tokens)')
+        token_cols = [row[1] for row in cursor.fetchall()]
+        if 'token_hash' not in token_cols:
+            cursor.execute('ALTER TABLE api_tokens ADD COLUMN token_hash TEXT')
+            conn.commit()
+            cursor.execute('SELECT id, token FROM api_tokens WHERE token IS NOT NULL AND token != ""')
+            for row in cursor.fetchall():
+                th = _token_hash(row['token'])
+                cursor.execute('UPDATE api_tokens SET token_hash = ? WHERE id = ?', (th, row['id']))
+            conn.commit()
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)')
+            conn.commit()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS gallery_assets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -351,14 +367,15 @@ def create_api_token(
     name: str | None = None,
     expires_at: str | None = None,
 ) -> int | None:
-    """Creates an API token. Returns token id or None."""
+    """Creates an API token. Stores hash only; token is raw (caller shows once). Returns token id or None."""
+    th = _token_hash(token)
     with get_db_connection() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                INSERT INTO api_tokens (user_id, token, name, expires_at)
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, token, name, expires_at))
+                INSERT INTO api_tokens (user_id, token, token_hash, name, expires_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, th, th, name, expires_at))
             conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
@@ -366,11 +383,12 @@ def create_api_token(
 
 
 def get_api_token(token: str) -> dict[str, Any] | None:
-    """Returns token row with user_id if valid and not expired."""
+    """Returns token row with user_id if valid and not expired. Lookup by token hash."""
+    th = _token_hash(token)
     with get_db_connection() as conn:
         row = conn.execute(
-            'SELECT * FROM api_tokens WHERE token = ?',
-            (token,),
+            'SELECT * FROM api_tokens WHERE token_hash = ?',
+            (th,),
         ).fetchone()
         if not row:
             return None
@@ -409,10 +427,11 @@ def get_user_tokens(user_id: int) -> list[dict[str, Any]]:
 
 
 def touch_api_token(token: str) -> None:
-    """Update last_used_at for the token."""
+    """Update last_used_at for the token. Lookup by token hash."""
+    th = _token_hash(token)
     with get_db_connection() as conn:
         conn.execute(
-            "UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token = ?",
-            (token,),
+            "UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?",
+            (th,),
         )
         conn.commit()

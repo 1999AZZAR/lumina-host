@@ -60,6 +60,12 @@ class Config:
     admin_password: str | None = field(
         default_factory=lambda: (os.getenv('ADMIN_PASSWORD') or '').strip() or None
     )
+    session_cookie_secure: bool = field(
+        default_factory=lambda: not (os.getenv('FLASK_ENV') == 'development' or os.getenv('DEBUG', '').lower() in ('1', 'true', 'yes'))
+    )
+    ratelimit_storage_url: str | None = field(
+        default_factory=lambda: (os.getenv('RATELIMIT_STORAGE_URL') or '').strip() or None
+    )
 
     @property
     def max_content_length_bytes(self) -> int:
