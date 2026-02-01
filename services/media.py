@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import io
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from PIL import Image, ImageOps
+
 import database
 import wordpress_api
+
+logger = logging.getLogger(__name__)
 
 UPLOAD_MAX_WORKERS = 4
 
@@ -37,6 +43,44 @@ class _BytesFileWrapper:
         return self._mimetype
 
 
+def optimize_image(file_bytes: bytes, filename: str, mimetype: str) -> bytes:
+    """
+    Optimize image for web: resize large images, strip metadata, and compress.
+    Returns original bytes if optimization fails or is not an image.
+    """
+    if not mimetype.startswith('image/'):
+        return file_bytes
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+
+        # Auto-rotate based on EXIF (then strip it by creating new image or saving)
+        img = ImageOps.exif_transpose(img)
+
+        # Resize if too large (max 2560px)
+        max_size = 2560
+        if max(img.size) > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+
+        # Convert to RGB if needed (for JPEG)
+        output_format = img.format or ('JPEG' if mimetype == 'image/jpeg' else 'PNG')
+
+        if output_format == 'JPEG' and img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        buffer = io.BytesIO()
+        # Optimize and save
+        save_args = {'optimize': True}
+        if output_format == 'JPEG':
+            save_args['quality'] = 85
+
+        img.save(buffer, format=output_format, **save_args)
+        return buffer.getvalue()
+    except Exception as e:
+        logger.warning("Image optimization failed for %s: %s", filename, e)
+        return file_bytes
+
+
 class MediaService:
     """Orchestrates upload to WordPress and local DB, and bulk delete."""
 
@@ -51,8 +95,12 @@ class MediaService:
         failed: list[str] = []
 
         def upload_one(item: tuple[str, bytes, str]) -> tuple[str, dict[str, Any] | None]:
-            filename, data, mimetype = item
-            wrapper = _BytesFileWrapper(data, filename, mimetype)
+            filename, raw_data, mimetype = item
+            
+            # Optimize in this thread (parallel CPU task)
+            optimized_data = optimize_image(raw_data, filename, mimetype)
+            
+            wrapper = _BytesFileWrapper(optimized_data, filename, mimetype)
             asset_data = wordpress_api.upload_media(wrapper)
             return (filename, asset_data)
 
