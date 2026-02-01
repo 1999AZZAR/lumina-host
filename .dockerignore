@@ -14,5 +14,5 @@ memory.db
 Dockerfile
 docker-compose.yml
 README.md
-WORDPRESS_SETUP.md
+docs/WORDPRESS_SETUP.md
 CONTRIBUTING.md

@@ -54,7 +54,7 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    * Mock Mode: Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
    * Live Mode: Fill in your WordPress credentials to enable real CDN hosting.
    
-   **[Read the WordPress Setup Guide](WORDPRESS_SETUP.md)** for detailed instructions on getting your API URL and Application Password.
+   **[Read the WordPress Setup Guide](docs/WORDPRESS_SETUP.md)** for detailed instructions on getting your API URL and Application Password.
 
    ```env
    WP_API_URL=https://your-site.com/wp-json/wp/v2/media
@@ -102,6 +102,8 @@ For production deployments:
 * **HTTPS:** Serve the app behind HTTPS. Set `SESSION_COOKIE_SECURE` via environment (session cookies are sent only over HTTPS when not in debug).
 * **Rate limits:** Set `RATELIMIT_STORAGE_URL` (e.g. to your Redis URL) so Flask-Limiter uses Redis instead of in-memory storage; otherwise limits are per-process and reset on restart.
 * **Admin password:** Use a strong `ADMIN_PASSWORD` (at least 8 characters, with letters and digits). `ADMIN_USERNAME` and `ADMIN_EMAIL` must be valid (alphanumeric/underscore username, valid email).
+
+For full API and usage documentation, see [docs/](docs/).
 
 ## Contributing
 
