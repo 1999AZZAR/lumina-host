@@ -155,7 +155,7 @@ function createAssetCard(asset, index) {
              </div>
         </div>${visibilityBlock}
         <div class="aspect-w-4 aspect-h-3 overflow-hidden bg-slate-800 relative">
-            <img src="${asset.urlThumb}" alt="${asset.title}" loading="lazy" class="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
+            <img src="${asset.urlThumb}" alt="${asset.title}" loading="lazy" class="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out">
             <div class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors duration-300"></div>
         </div>
         <div class="info-overlay absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
