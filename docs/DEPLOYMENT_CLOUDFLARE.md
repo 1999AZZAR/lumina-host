@@ -20,7 +20,29 @@ This guide details the deployment of Lumina Host using Docker and Cloudflare Tun
     git clone https://github.com/1999AZZAR/lumina-host.git .
     ```
 
-2.  **Configure Environment**
+2.  **Install Cloudflared**
+    Follow these steps to install the Cloudflare Tunnel client on Debian/Ubuntu.
+
+    ```bash
+    # Add Cloudflare gpg key
+    sudo mkdir -p --mode=0755 /usr/share/keyrings
+    curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+
+    # Add Cloudflare apt repository
+    echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared/ any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+    # Install cloudflared
+    sudo apt-get update && sudo apt-get install cloudflared
+    ```
+
+    **Authenticate Cloudflared**
+    Authenticate the client with your Cloudflare account.
+
+    ```bash
+    cloudflared tunnel login
+    ```
+
+3.  **Configure Environment**
     Copy the example configuration.
 
     ```bash
@@ -47,7 +69,7 @@ This guide details the deployment of Lumina Host using Docker and Cloudflare Tun
 
     **Security Warning:** Never commit `.env` to version control. It contains sensitive credentials.
 
-3.  **Start Services**
+4.  **Start Services**
     Build and start the containerized application.
 
     ```bash
