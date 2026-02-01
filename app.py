@@ -1,5 +1,6 @@
 import logging
 import os
+import io
 import requests
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
@@ -10,6 +11,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from PIL import Image, ImageOps
 
 # Local imports
 from config import get_config, resolve_secret_key
@@ -219,6 +221,44 @@ def internal_error(error: Exception):
         return jsonify({'error': 'An unexpected error occurred.'}), 500
     flash('An unexpected error occurred.')
     return redirect(url_for('index'))
+
+
+def optimize_image(file_bytes: bytes, filename: str, mimetype: str) -> bytes:
+    """
+    Optimize image for web: resize large images, strip metadata, and compress.
+    Returns original bytes if optimization fails or is not an image.
+    """
+    if not mimetype.startswith('image/'):
+        return file_bytes
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        
+        # Auto-rotate based on EXIF (then strip it by creating new image or saving)
+        img = ImageOps.exif_transpose(img)
+        
+        # Resize if too large (max 2560px)
+        max_size = 2560
+        if max(img.size) > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            
+        # Convert to RGB if needed (for JPEG)
+        output_format = img.format or ('JPEG' if mimetype == 'image/jpeg' else 'PNG')
+        
+        if output_format == 'JPEG' and img.mode != 'RGB':
+            img = img.convert('RGB')
+            
+        buffer = io.BytesIO()
+        # Optimize and save
+        save_args = {'optimize': True}
+        if output_format == 'JPEG':
+            save_args['quality'] = 85
+            
+        img.save(buffer, format=output_format, **save_args)
+        return buffer.getvalue()
+    except Exception as e:
+        logger.warning("Image optimization failed for %s: %s", filename, e)
+        return file_bytes
 
 
 def allowed_file(filename: str | None) -> bool:
@@ -584,7 +624,11 @@ def upload_file():
             try:
                 # Normalize filename to ensure safe ASCII for WP compatibility
                 safe_name = secure_filename(normalize_filename(file.filename))
-                valid.append((safe_name, file.read(), file.content_type or 'application/octet-stream'))
+                
+                raw_data = file.read()
+                optimized_data = optimize_image(raw_data, safe_name, file.content_type or 'application/octet-stream')
+                
+                valid.append((safe_name, optimized_data, file.content_type or 'application/octet-stream'))
             except Exception as e:
                 logger.warning("Failed to read file %s: %s", file.filename, e)
     if not valid:
