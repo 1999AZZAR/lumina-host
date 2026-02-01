@@ -149,8 +149,8 @@ BLOCKED_NETLOCS = frozenset(
 
 
 def _get_proxy_allowed_netloc() -> str | None:
-    """Extract allowed netloc from WP_API_URL for proxy_download whitelist."""
-    api_url = _config.wp_api_url
+    """Extract allowed netloc from WP_API_URL for proxy_download whitelist (settings then env)."""
+    api_url = database.get_setting('wp_api_url') or _config.wp_api_url
     if not api_url:
         return None
     parsed = urlparse(api_url)
@@ -364,6 +364,40 @@ def revoke_token(token_id: int):
     if database.revoke_api_token(token_id, user_id):
         return jsonify({'message': 'Token revoked.'})
     return jsonify({'error': 'Token not found or already revoked.'}), 404
+
+
+@app.route('/api/settings', methods=['GET'])
+@auth_login_required
+@admin_required
+def get_settings():
+    """Admin: get WordPress-related settings (passwords masked)."""
+    wp_api_url = database.get_setting('wp_api_url') or ''
+    wp_user = database.get_setting('wp_user') or ''
+    wp_pass_set = bool(database.get_setting('wp_pass'))
+    return jsonify({
+        'wp_api_url': wp_api_url,
+        'wp_user': wp_user,
+        'wp_pass_set': wp_pass_set,
+    })
+
+
+@app.route('/api/settings', methods=['PATCH'])
+@auth_login_required
+@admin_required
+def update_settings():
+    """Admin: update WordPress settings. Send only keys to change; empty wp_pass means do not change."""
+    data = request.get_json(silent=True) or {}
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return jsonify({'error': 'Use JSON and X-Requested-With: XMLHttpRequest'}), 400
+    if 'wp_api_url' in data:
+        database.set_setting('wp_api_url', (data.get('wp_api_url') or '').strip()[:2048])
+    if 'wp_user' in data:
+        database.set_setting('wp_user', (data.get('wp_user') or '').strip()[:256])
+    if 'wp_pass' in data:
+        val = data.get('wp_pass')
+        if val is not None and isinstance(val, str) and val.strip():
+            database.set_setting('wp_pass', val.strip()[:512])
+    return jsonify({'message': 'Settings updated.'})
 
 
 @app.route('/admin/users', methods=['GET'])

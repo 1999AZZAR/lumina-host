@@ -52,7 +52,7 @@ A decoupled image gallery application that leverages Headless WordPress for robu
    ```
 
    * Mock Mode: Leave `WP_*` variables empty (or delete them) to test with simulated uploads.
-   * Live Mode: Fill in your WordPress credentials to enable real CDN hosting.
+   * Live Mode: Fill in WordPress credentials in `.env` or in the app (Profile, admin only: WordPress integration).
    
    **[Read the WordPress Setup Guide](docs/WORDPRESS_SETUP.md)** for detailed instructions on getting your API URL and Application Password.
 
@@ -100,11 +100,11 @@ Using Docker Compose (see [docker-compose.yml](docker-compose.yml)):
 
 ```bash
 cp example.env .env
-# Edit .env: set FLASK_SECRET_KEY, WP_* if needed, and ADMIN_USERNAME/ADMIN_EMAIL/ADMIN_PASSWORD for AMT.
+# Edit .env: FLASK_SECRET_KEY; for AMT set ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD. WP_* optional (or set in Profile > WordPress integration).
 docker compose up -d
 ```
 
-The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in with `ADMIN_USERNAME` / `ADMIN_PASSWORD`. To assign existing gallery assets to the default tenant, run once: `docker compose exec web python -m migrations.add_user_system`.
+The database is stored in a named volume `gallery_data` (DB_PATH=/app/data/gallery.db). The app creates the default admin at startup when `ADMIN_PASSWORD` is set in `.env`. Open `http://localhost:5050` and log in; admins can set WordPress credentials under Profile > WordPress integration. To assign existing gallery assets to the default tenant, run once: `docker compose exec web python -m migrations.add_user_system`.
 
 ## Production
 

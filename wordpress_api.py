@@ -9,6 +9,7 @@ from typing import Any
 import requests
 
 from config import get_config
+import database
 
 _config = get_config()
 logger = logging.getLogger(__name__)
@@ -17,10 +18,28 @@ logger = logging.getLogger(__name__)
 WP_UPLOAD_RETRIES = 3
 WP_UPLOAD_RETRY_BACKOFF = (1, 2, 3)  # seconds before each retry
 
-def _get_auth_header() -> dict[str, str] | None:
-    if not _config.wp_user or not _config.wp_pass:
+WP_API_URL_KEY = 'wp_api_url'
+WP_USER_KEY = 'wp_user'
+WP_PASS_KEY = 'wp_pass'
+
+
+def _get_wp_credentials() -> tuple[str | None, str | None, str | None]:
+    """Return (wp_api_url, wp_user, wp_pass) from settings table first, else from env config."""
+    try:
+        url = database.get_setting(WP_API_URL_KEY)
+        user = database.get_setting(WP_USER_KEY)
+        pass_ = database.get_setting(WP_PASS_KEY)
+        if url and user and pass_:
+            return (url.strip(), user.strip(), pass_)
+    except Exception as e:
+        logger.debug("Settings lookup for WP credentials: %s", e)
+    return (_config.wp_api_url, _config.wp_user, _config.wp_pass)
+
+
+def _get_auth_header(wp_user: str | None = None, wp_pass: str | None = None) -> dict[str, str] | None:
+    if not wp_user or not wp_pass:
         return None
-    credentials = f"{_config.wp_user}:{_config.wp_pass}"
+    credentials = f"{wp_user}:{wp_pass}"
     token = base64.b64encode(credentials.encode()).decode('utf-8')
     return {'Authorization': f'Basic {token}'}
 
@@ -30,11 +49,11 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
     Uploads a file to the WordPress Media Library or returns a mock response
     if credentials are not set.
     """
-    if not _config.wp_configured or not _config.wp_api_url:
+    wp_url, wp_user, wp_pass = _get_wp_credentials()
+    if not wp_url or not wp_user or not wp_pass:
         logger.warning("WordPress credentials missing. Using MOCK MODE.")
         return _mock_upload_response(file_storage)
 
-    wp_url = _config.wp_api_url
     filename = file_storage.filename
     mime_type = file_storage.mimetype
     file_content = file_storage.read()
@@ -45,7 +64,7 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
 
-    headers.update(_get_auth_header() or {})
+    headers.update(_get_auth_header(wp_user, wp_pass) or {})
 
     last_error: requests.exceptions.RequestException | None = None
     for attempt in range(WP_UPLOAD_RETRIES):
@@ -105,12 +124,13 @@ WP_DELETE_RETRY_BACKOFF = (1,)
 
 def delete_media(wp_id: int) -> bool:
     """Deletes a media item from WordPress. Returns True if successful."""
-    if not _config.wp_configured or not _config.wp_api_url:
+    wp_url, wp_user, wp_pass = _get_wp_credentials()
+    if not wp_url or not wp_user or not wp_pass:
         logger.info("Mock mode: simulated deletion of WP ID %s", wp_id)
         return True
 
-    url = f"{_config.wp_api_url}/{wp_id}?force=true"
-    headers = _get_auth_header() or {}
+    url = f"{wp_url}/{wp_id}?force=true"
+    headers = _get_auth_header(wp_user, wp_pass) or {}
     headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
     last_error: Exception | None = None

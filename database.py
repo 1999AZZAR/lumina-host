@@ -133,6 +133,12 @@ def init_db():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON gallery_assets(created_at);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_tenant ON gallery_assets(tenant_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user ON gallery_assets(user_id);')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+        ''')
         conn.commit()
 
 def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id: int | None = None) -> None:
@@ -293,6 +299,20 @@ def update_asset_visibility(
         conn.commit()
         _invalidate_assets_cache()
         return cursor.rowcount > 0
+
+
+def get_setting(key: str) -> str | None:
+    """Return setting value by key, or None if not set."""
+    with get_db_connection() as conn:
+        row = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+        return row['value'] if row else None
+
+
+def set_setting(key: str, value: str) -> None:
+    """Set a setting (insert or replace)."""
+    with get_db_connection() as conn:
+        conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+        conn.commit()
 
 
 # --- Users ---
