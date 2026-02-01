@@ -44,7 +44,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = _config.session_cookie_secure
 if _config.ratelimit_storage_url:
-    app.config['RATELIMIT_STORAGE_URL'] = _config.ratelimit_storage_url
+    app.config['RATELIMIT_STORAGE_URI'] = _config.ratelimit_storage_url
 if os.environ.get('TESTING') == '1':
     app.config['RATELIMIT_ENABLED'] = False
 csrf = CSRFProtect(app)
