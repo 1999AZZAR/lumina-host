@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import logging
 import random
+import time
 from typing import Any
 
 import requests
@@ -11,6 +12,10 @@ from config import get_config
 
 _config = get_config()
 logger = logging.getLogger(__name__)
+
+# Retry transient connection errors (e.g. connection reset by peer).
+WP_UPLOAD_RETRIES = 3
+WP_UPLOAD_RETRY_BACKOFF = (1, 2, 3)  # seconds before each retry
 
 def _get_auth_header() -> dict[str, str] | None:
     if not _config.wp_user or not _config.wp_pass:
@@ -42,38 +47,61 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
 
     headers.update(_get_auth_header() or {})
 
-    try:
-        response = requests.post(
-            wp_url,
-            headers=headers,
-            data=file_content,
-            timeout=90 
-        )
-        
-        if not response.ok:
-            logger.error("WordPress upload error %s: %s", response.status_code, response.text[:200])
+    last_error: requests.exceptions.RequestException | None = None
+    for attempt in range(WP_UPLOAD_RETRIES):
+        try:
+            if attempt > 0:
+                time.sleep(WP_UPLOAD_RETRY_BACKOFF[attempt - 1])
+            response = requests.post(
+                wp_url,
+                headers=headers,
+                data=file_content,
+                timeout=90,
+            )
+            if not response.ok:
+                logger.error(
+                    "WordPress upload error %s: %s",
+                    response.status_code,
+                    response.text[:200],
+                )
+            response.raise_for_status()
+            data = response.json()
+            sizes = data.get('media_details', {}).get('sizes', {})
+            url_full = data.get('source_url')
+            url_thumbnail = sizes.get('thumbnail', {}).get('source_url', url_full)
+            url_medium = sizes.get('medium', {}).get('source_url', url_full)
+            return {
+                'wp_media_id': data.get('id'),
+                'title': data.get('title', {}).get('raw', filename),
+                'file_name': filename,
+                'mime_type': mime_type,
+                'url_full': url_full,
+                'url_thumbnail': url_thumbnail,
+                'url_medium': url_medium,
+            }
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            last_error = e
+            if attempt < WP_UPLOAD_RETRIES - 1:
+                logger.warning(
+                    "WordPress upload attempt %s failed (%s), retrying: %s",
+                    attempt + 1,
+                    type(e).__name__,
+                    e,
+                )
+            else:
+                logger.exception("Error uploading to WordPress after %s attempts: %s", WP_UPLOAD_RETRIES, e)
+                return None
+        except requests.exceptions.RequestException as e:
+            logger.exception("Error uploading to WordPress: %s", e)
+            return None
 
-        response.raise_for_status()
-        data = response.json()
-        
-        sizes = data.get('media_details', {}).get('sizes', {})
-        url_full = data.get('source_url')
-        url_thumbnail = sizes.get('thumbnail', {}).get('source_url', url_full)
-        url_medium = sizes.get('medium', {}).get('source_url', url_full)
+    if last_error:
+        logger.exception("Error uploading to WordPress: %s", last_error)
+    return None
 
-        return {
-            'wp_media_id': data.get('id'),
-            'title': data.get('title', {}).get('raw', filename),
-            'file_name': filename,
-            'mime_type': mime_type,
-            'url_full': url_full,
-            'url_thumbnail': url_thumbnail,
-            'url_medium': url_medium
-        }
+WP_DELETE_RETRIES = 2
+WP_DELETE_RETRY_BACKOFF = (1,)
 
-    except requests.exceptions.RequestException as e:
-        logger.exception("Error uploading to WordPress: %s", e)
-        return None
 
 def delete_media(wp_id: int) -> bool:
     """Deletes a media item from WordPress. Returns True if successful."""
@@ -85,16 +113,44 @@ def delete_media(wp_id: int) -> bool:
     headers = _get_auth_header() or {}
     headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-    try:
-        response = requests.delete(url, headers=headers, timeout=30)
-        if response.ok:
-            return True
-        else:
-            logger.error("Failed to delete WP ID %s: %s - %s", wp_id, response.status_code, response.text[:100])
+    last_error: Exception | None = None
+    for attempt in range(WP_DELETE_RETRIES):
+        try:
+            if attempt > 0:
+                time.sleep(WP_DELETE_RETRY_BACKOFF[attempt - 1])
+            response = requests.delete(url, headers=headers, timeout=30)
+            if response.ok:
+                return True
+            logger.error(
+                "Failed to delete WP ID %s: %s - %s",
+                wp_id,
+                response.status_code,
+                response.text[:100],
+            )
             return False
-    except Exception as e:
-        logger.exception("Error deleting from WordPress: %s", e)
-        return False
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            last_error = e
+            if attempt < WP_DELETE_RETRIES - 1:
+                logger.warning(
+                    "WordPress delete attempt %s failed (%s), retrying: %s",
+                    attempt + 1,
+                    type(e).__name__,
+                    e,
+                )
+            else:
+                logger.exception(
+                    "Error deleting from WordPress after %s attempts: %s",
+                    WP_DELETE_RETRIES,
+                    e,
+                )
+                return False
+        except Exception as e:
+            logger.exception("Error deleting from WordPress: %s", e)
+            return False
+
+    if last_error:
+        logger.exception("Error deleting from WordPress: %s", last_error)
+    return False
 
 def _mock_upload_response(file_storage: Any) -> dict[str, Any]:
     """Generates a fake successful response for testing UI/DB logic."""
