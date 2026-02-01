@@ -116,17 +116,27 @@
     <nav class="fixed top-0 w-full z-50 glass-panel border-b-0 shadow-lg bg-slate-900/40">
         <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                    <div
-                        class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <i class="fa-solid fa-layer-group text-white text-sm"></i>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="font-semibold text-lg tracking-wide text-white/90 leading-tight">Lumina Host</span>
-                        <span class="text-[10px] text-slate-400 leading-tight hidden sm:block">Securely hosted on
-                            WordPress CDN</span>
-                    </div>
-                </a>
+                <div class="flex items-center gap-3">
+                    <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <i class="fa-solid fa-layer-group text-white text-sm"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-lg tracking-wide text-white/90 leading-tight">Lumina
+                                Host</span>
+                            <span class="text-[10px] text-slate-400 leading-tight hidden sm:block">Securely hosted on
+                                WordPress CDN</span>
+                        </div>
+                    </a>
+
+                    <!-- Sidebar Toggle Button -->
+                    <button id="sidebar-toggle" onclick="toggleSidebar()"
+                        class="ml-2 w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
+                        title="Toggle Sidebar">
+                        <i class="fa-solid fa-bars text-sm"></i>
+                    </button>
+                </div>
 
                 <div class="flex items-center gap-2">
                     {% if current_user.is_authenticated %}
