@@ -68,6 +68,19 @@ def validate_username(s: str | None) -> str:
     return s
 
 
+def validate_album_name(s: str | None) -> str:
+    """Validate album name: strip, length cap. Raises ValueError if invalid."""
+    if s is None:
+        raise ValueError('Album name is required.')
+    s = s.strip()[:64]
+    if not s:
+        raise ValueError('Album name is required.')
+    # Allow alphanumeric, spaces, hyphens, underscores
+    if not re.match(r'^[a-zA-Z0-9 _-]+$', s):
+        raise ValueError('Album name may only contain letters, numbers, spaces, hyphens, and underscores.')
+    return s
+
+
 def validate_email_for_db(s: str | None) -> str:
     """Validate and normalize email. Raises ValueError if invalid. Allows @localhost for dev."""
     if s is None:

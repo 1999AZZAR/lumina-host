@@ -17,7 +17,7 @@ from PIL import Image, ImageOps
 from config import get_config, resolve_secret_key
 import database
 from auth import User, admin_required, get_current_tenant_id, get_current_user_id, login_required as auth_login_required
-from services import AssetService, MediaService
+from services import AssetService, MediaService, AlbumService
 from services.auth import authenticate_user, create_user as auth_create_user, generate_api_token, validate_api_token
 from validators import (
     sanitize_search_query,
@@ -28,6 +28,7 @@ from validators import (
     validate_password_strength,
     validate_positive_id,
     normalize_filename,
+    validate_album_name,
 )
 
 # Load environment variables
@@ -502,6 +503,9 @@ def get_assets_api():
         if page < 1:
             page = 1
         search_query = sanitize_search_query(request.args.get('q', ''))
+        album_id_raw = request.args.get('album_id')
+        album_id = int(album_id_raw) if album_id_raw and album_id_raw.isdigit() else None
+        
         tenant_id = get_current_tenant_id()
         user_id = get_current_user_id()
         from flask_login import current_user
@@ -516,12 +520,132 @@ def get_assets_api():
             search_query=search_query or None,
             tenant_id=tenant_id,
             user_id=user_id,
+            album_id=album_id,
             public_only=public_only,
         )
         return jsonify(result)
     except Exception as e:
         logger.exception("get_assets_api failed: %s", e)
         return jsonify({'error': 'Failed to load assets.'}), 500
+
+
+@app.route('/api/albums', methods=['GET'])
+@auth_login_required
+def list_albums():
+    """List albums for current user/tenant."""
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    if getattr(current_user, 'role', None) == 'admin':
+        tenant_id = None
+        user_id = None
+    
+    albums = AlbumService.get_albums(tenant_id=tenant_id, user_id=user_id)
+    return jsonify({'albums': albums})
+
+
+@app.route('/api/albums', methods=['POST'])
+@auth_login_required
+def create_album():
+    """Create a new album."""
+    data = request.get_json(silent=True) or {}
+    try:
+        name = validate_album_name(data.get('name'))
+        description = (data.get('description') or '').strip()[:200] or None
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+        
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    
+    try:
+        album = AlbumService.create_album(name, description, user_id, tenant_id)
+        return jsonify(album), 201
+    except Exception as e:
+        logger.error("Create album failed: %s", e)
+        return jsonify({'error': 'Failed to create album.'}), 500
+
+
+@app.route('/api/albums/<int:album_id>', methods=['GET'])
+@auth_login_required
+def get_album(album_id: int):
+    """Get album details."""
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    is_admin = getattr(current_user, 'role', None) == 'admin'
+    
+    album = AlbumService.get_album(album_id, tenant_id, user_id, is_admin)
+    if not album:
+        return jsonify({'error': 'Album not found.'}), 404
+    return jsonify(album)
+
+
+@app.route('/api/albums/<int:album_id>', methods=['PATCH'])
+@auth_login_required
+def update_album(album_id: int):
+    """Update album details."""
+    data = request.get_json(silent=True) or {}
+    try:
+        name = validate_album_name(data.get('name'))
+        description = (data.get('description') or '').strip()[:200] or None
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+        
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    is_admin = getattr(current_user, 'role', None) == 'admin'
+    
+    if AlbumService.update_album(album_id, name, description, tenant_id, user_id, is_admin):
+        return jsonify({'message': 'Album updated.'})
+    return jsonify({'error': 'Album not found or access denied.'}), 404
+
+
+@app.route('/api/albums/<int:album_id>', methods=['DELETE'])
+@auth_login_required
+def delete_album(album_id: int):
+    """Delete album."""
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    is_admin = getattr(current_user, 'role', None) == 'admin'
+    
+    if AlbumService.delete_album(album_id, tenant_id, user_id, is_admin):
+        return jsonify({'message': 'Album deleted.'})
+    return jsonify({'error': 'Album not found or access denied.'}), 404
+
+
+@app.route('/api/assets/move', methods=['POST'])
+@auth_login_required
+def move_assets():
+    """Move assets to an album (or remove from album if album_id is null)."""
+    data = request.get_json(silent=True) or {}
+    try:
+        asset_ids = validate_delete_ids(data.get('ids', []))
+        album_id_raw = data.get('album_id')
+        album_id = int(album_id_raw) if album_id_raw is not None else None
+        if album_id:
+            validate_positive_id(album_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+        
+    tenant_id = get_current_tenant_id()
+    user_id = get_current_user_id()
+    from flask_login import current_user
+    if getattr(current_user, 'role', None) == 'admin':
+        tenant_id = None
+        user_id = None
+        
+    # If album_id is provided, verify it exists and user has access
+    if album_id:
+        from flask_login import current_user
+        is_admin = getattr(current_user, 'role', None) == 'admin'
+        if not AlbumService.get_album(album_id, tenant_id, user_id, is_admin):
+             return jsonify({'error': 'Target album not found or access denied.'}), 404
+
+    count = database.move_assets_to_album(asset_ids, album_id, tenant_id, user_id)
+    return jsonify({'message': f'Moved {count} assets.'})
 
 
 @app.route('/api/assets/<int:asset_id>/visibility', methods=['PATCH'])

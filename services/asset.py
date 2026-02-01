@@ -17,6 +17,7 @@ class AssetService:
         search_query: str | None = None,
         tenant_id: int | None = None,
         user_id: int | None = None,
+        album_id: int | None = None,
         public_only: bool = False,
     ) -> dict[str, Any]:
         """Return {'assets': list, 'has_more': bool}. public_only=True limits to is_public=1."""
@@ -26,5 +27,6 @@ class AssetService:
             search_query=search_query,
             tenant_id=tenant_id,
             user_id=user_id,
+            album_id=album_id,
             public_only=public_only,
         )

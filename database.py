@@ -53,6 +53,7 @@ def _invalidate_assets_cache() -> None:
 def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -82,6 +83,19 @@ def init_db():
             );
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS albums (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                user_id INTEGER REFERENCES users(id),
+                tenant_id INTEGER REFERENCES tenants(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_user ON albums(user_id);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_albums_tenant ON albums(tenant_id);')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS api_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,6 +131,10 @@ def init_db():
                 url_full TEXT NOT NULL,
                 url_thumbnail TEXT NOT NULL,
                 url_medium TEXT NOT NULL,
+                user_id INTEGER REFERENCES users(id),
+                tenant_id INTEGER REFERENCES tenants(id),
+                album_id INTEGER REFERENCES albums(id) ON DELETE SET NULL,
+                is_public INTEGER NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -127,12 +145,15 @@ def init_db():
             cursor.execute('ALTER TABLE gallery_assets ADD COLUMN user_id INTEGER REFERENCES users(id)')
         if 'tenant_id' not in columns:
             cursor.execute('ALTER TABLE gallery_assets ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)')
+        if 'album_id' not in columns:
+            cursor.execute('ALTER TABLE gallery_assets ADD COLUMN album_id INTEGER REFERENCES albums(id) ON DELETE SET NULL')
         if 'is_public' not in columns:
             cursor.execute('ALTER TABLE gallery_assets ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_wp_id ON gallery_assets(wp_media_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON gallery_assets(created_at);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_tenant ON gallery_assets(tenant_id);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_user ON gallery_assets(user_id);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_assets_album ON gallery_assets(album_id);')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
@@ -141,7 +162,7 @@ def init_db():
         ''')
         conn.commit()
 
-def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id: int | None = None) -> None:
+def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id: int | None = None, album_id: int | None = None) -> None:
     """Adds a new asset to the local database. New assets are public by default."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -149,8 +170,8 @@ def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id:
             cursor.execute('''
                 INSERT INTO gallery_assets (
                     wp_media_id, title, file_name, mime_type,
-                    url_full, url_thumbnail, url_medium, user_id, tenant_id, is_public
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    url_full, url_thumbnail, url_medium, user_id, tenant_id, album_id, is_public
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ''', (
                 asset_data['wp_media_id'],
                 asset_data['title'],
@@ -161,6 +182,7 @@ def add_asset(asset_data: dict[str, Any], user_id: int | None = None, tenant_id:
                 asset_data['url_medium'],
                 user_id,
                 tenant_id,
+                album_id,
             ))
             conn.commit()
             _invalidate_assets_cache()
@@ -175,6 +197,7 @@ def get_assets(
     search_query: str | None = None,
     tenant_id: int | None = None,
     user_id: int | None = None,
+    album_id: int | None = None,
     public_only: bool = False,
 ) -> dict[str, Any]:
     """
@@ -187,8 +210,9 @@ def get_assets(
     qhash = hashlib.sha256((search_query or '').encode()).hexdigest()[:16]
     tid = tenant_id or 0
     uid = user_id or 0
+    aid = album_id or 0
     pub = 1 if public_only else 0
-    cache_key = f"{ASSETS_CACHE_KEY_PREFIX}{_cache_version()}:p{page}:q{qhash}:t{tid}:u{uid}:pub{pub}"
+    cache_key = f"{ASSETS_CACHE_KEY_PREFIX}{_cache_version()}:p{page}:q{qhash}:t{tid}:u{uid}:a{aid}:pub{pub}"
     if redis_client:
         try:
             raw = redis_client.get(cache_key)
@@ -208,6 +232,9 @@ def get_assets(
     if user_id is not None:
         conditions.append('user_id = ?')
         params.append(user_id)
+    if album_id is not None:
+        conditions.append('album_id = ?')
+        params.append(album_id)
     if public_only:
         conditions.append('is_public = 1')
     if search_query:
@@ -301,6 +328,38 @@ def update_asset_visibility(
         return cursor.rowcount > 0
 
 
+def move_assets_to_album(
+    asset_ids: list[int],
+    album_id: int | None,
+    tenant_id: int | None = None,
+    user_id: int | None = None,
+) -> int:
+    """
+    Updates album_id for multiple assets.
+    Checks tenant/user ownership.
+    Returns number of updated rows.
+    """
+    if not asset_ids:
+        return 0
+    placeholders = ','.join('?' * len(asset_ids))
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        sql = f'UPDATE gallery_assets SET album_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})'
+        params: list[Any] = [album_id] + list(asset_ids)
+        
+        if tenant_id is not None:
+            sql += ' AND tenant_id = ?'
+            params.append(tenant_id)
+        if user_id is not None:
+            sql += ' AND user_id = ?'
+            params.append(user_id)
+            
+        cursor.execute(sql, tuple(params))
+        conn.commit()
+        _invalidate_assets_cache()
+        return cursor.rowcount
+
+
 def get_setting(key: str) -> str | None:
     """Return setting value by key, or None if not set."""
     with get_db_connection() as conn:
@@ -313,6 +372,77 @@ def set_setting(key: str, value: str) -> None:
     with get_db_connection() as conn:
         conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
         conn.commit()
+
+
+# --- Albums ---
+
+def create_album(
+    name: str,
+    description: str | None = None,
+    user_id: int | None = None,
+    tenant_id: int | None = None,
+) -> int | None:
+    """Creates a new album. Returns album id."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO albums (name, description, user_id, tenant_id)
+            VALUES (?, ?, ?, ?)
+        ''', (name, description, user_id, tenant_id))
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_album(album_id: int) -> dict[str, Any] | None:
+    """Returns album row as dict or None."""
+    with get_db_connection() as conn:
+        row = conn.execute('SELECT * FROM albums WHERE id = ?', (album_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_albums(
+    tenant_id: int | None = None,
+    user_id: int | None = None,
+) -> list[dict[str, Any]]:
+    """Returns list of albums filtered by tenant/user."""
+    sql = 'SELECT * FROM albums'
+    params = []
+    conditions = []
+    if tenant_id is not None:
+        conditions.append('tenant_id = ?')
+        params.append(tenant_id)
+    if user_id is not None:
+        conditions.append('user_id = ?')
+        params.append(user_id)
+    
+    if conditions:
+        sql += ' WHERE ' + ' AND '.join(conditions)
+    sql += ' ORDER BY created_at DESC'
+
+    with get_db_connection() as conn:
+        rows = conn.execute(sql, tuple(params)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_album(album_id: int, name: str, description: str | None = None) -> bool:
+    """Updates album details."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE albums SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (name, description, album_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def delete_album(album_id: int) -> bool:
+    """Deletes an album. Associated assets will have album_id set to NULL (via ON DELETE SET NULL)."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM albums WHERE id = ?', (album_id,))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 # --- Users ---
