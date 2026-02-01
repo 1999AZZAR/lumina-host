@@ -27,5 +27,8 @@ COPY . .
 # Expose port
 EXPOSE 5050
 
+# Ensure entrypoint is executable
+RUN chmod +x entrypoint.sh
+
 # Run the application with Gunicorn via entrypoint script
 CMD ["./entrypoint.sh"]
