@@ -59,14 +59,14 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
     file_content = file_storage.read()
 
     headers = {
-        'Content-Disposition': f'attachment; filename={filename}',
+        'Content-Disposition': f'attachment; filename="{filename}"',
         'Content-Type': mime_type,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
 
     headers.update(_get_auth_header(wp_user, wp_pass) or {})
 
-    last_error: requests.exceptions.RequestException | None = None
+    last_error: Exception | None = None
     for attempt in range(WP_UPLOAD_RETRIES):
         try:
             if attempt > 0:
@@ -77,6 +77,18 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
                 data=file_content,
                 timeout=90,
             )
+            
+            # Retry on server errors
+            if response.status_code >= 500:
+                logger.warning(
+                    "WordPress upload error %s (Attempt %s/%s): %s",
+                    response.status_code,
+                    attempt + 1,
+                    WP_UPLOAD_RETRIES,
+                    response.text[:200]
+                )
+                response.raise_for_status()
+
             if not response.ok:
                 logger.error(
                     "WordPress upload error %s: %s",
@@ -98,9 +110,13 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
                 'url_thumbnail': url_thumbnail,
                 'url_medium': url_medium,
             }
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             last_error = e
-            if attempt < WP_UPLOAD_RETRIES - 1:
+            # Only retry 5xx errors if it's an HTTPError
+            is_5xx = isinstance(e, requests.exceptions.HTTPError) and e.response is not None and e.response.status_code >= 500
+            is_connection = isinstance(e, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+            
+            if (is_connection or is_5xx) and attempt < WP_UPLOAD_RETRIES - 1:
                 logger.warning(
                     "WordPress upload attempt %s failed (%s), retrying: %s",
                     attempt + 1,
@@ -108,8 +124,12 @@ def upload_media(file_storage: Any) -> dict[str, Any] | None:
                     e,
                 )
             else:
-                logger.exception("Error uploading to WordPress after %s attempts: %s", WP_UPLOAD_RETRIES, e)
-                return None
+                if attempt == WP_UPLOAD_RETRIES - 1:
+                    logger.exception("Error uploading to WordPress after %s attempts: %s", WP_UPLOAD_RETRIES, e)
+                else:
+                    # If it's not a retryable error (e.g. 400), break immediately
+                    logger.error("Error uploading to WordPress: %s", e)
+                    return None
         except requests.exceptions.RequestException as e:
             logger.exception("Error uploading to WordPress: %s", e)
             return None
@@ -139,8 +159,21 @@ def delete_media(wp_id: int) -> bool:
             if attempt > 0:
                 time.sleep(WP_DELETE_RETRY_BACKOFF[attempt - 1])
             response = requests.delete(url, headers=headers, timeout=30)
+            
+            # Retry on server errors
+            if response.status_code >= 500:
+                logger.warning(
+                    "WordPress delete error %s (Attempt %s/%s): %s",
+                    response.status_code,
+                    attempt + 1,
+                    WP_DELETE_RETRIES,
+                    response.text[:100]
+                )
+                response.raise_for_status()
+
             if response.ok:
                 return True
+            
             logger.error(
                 "Failed to delete WP ID %s: %s - %s",
                 wp_id,
@@ -148,9 +181,13 @@ def delete_media(wp_id: int) -> bool:
                 response.text[:100],
             )
             return False
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             last_error = e
-            if attempt < WP_DELETE_RETRIES - 1:
+            # Only retry 5xx errors if it's an HTTPError
+            is_5xx = isinstance(e, requests.exceptions.HTTPError) and e.response is not None and e.response.status_code >= 500
+            is_connection = isinstance(e, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+
+            if (is_connection or is_5xx) and attempt < WP_DELETE_RETRIES - 1:
                 logger.warning(
                     "WordPress delete attempt %s failed (%s), retrying: %s",
                     attempt + 1,
@@ -158,11 +195,12 @@ def delete_media(wp_id: int) -> bool:
                     e,
                 )
             else:
-                logger.exception(
-                    "Error deleting from WordPress after %s attempts: %s",
-                    WP_DELETE_RETRIES,
-                    e,
-                )
+                if attempt == WP_DELETE_RETRIES - 1:
+                    logger.exception(
+                        "Error deleting from WordPress after %s attempts: %s",
+                        WP_DELETE_RETRIES,
+                        e,
+                    )
                 return False
         except Exception as e:
             logger.exception("Error deleting from WordPress: %s", e)
