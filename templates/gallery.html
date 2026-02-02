@@ -395,11 +395,11 @@
                         fileName: "{{ asset.file_name }}",
                             type: "{{ asset.mime_type }}",
                                 date: "{{ asset.created_at }}",
-                                    isPublic: { { 1 if (asset.is_public | default (1)) else 0 } }
+                                    isPublic: {{ 1 if (asset.is_public | default(1)) else 0 }}
     },
     {% endfor %}
         ],
-    hasMore: { { 'true' if has_more else 'false' } }
+    hasMore: {{ 'true' if has_more else 'false' }}
     };
 </script>
 
@@ -551,5 +551,5 @@
 </script>
 
 <!-- Gallery Logic -->
-<script src="{{ url_for('static', filename='js/gallery.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/gallery.js') }}?v=4"></script>
 {% endblock %}

@@ -74,6 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.LuminaConfig) {
         state.galleryData = window.LuminaConfig.initialAssets || [];
         state.hasMore = window.LuminaConfig.hasMore || false;
+
+        // Render initial assets to the grid immediately
+        state.galleryData.forEach((asset, index) => {
+            elements.grid.insertAdjacentHTML('beforeend', createAssetCard(asset, index));
+        });
+
+        // Set current page to 1 since we already loaded the first page from server
+        if (state.galleryData.length > 0) {
+            state.currentPage = 1;
+        }
+
         if (window.LuminaConfig.isAuthenticated) fetchAlbums();
     }
     initInfiniteScroll();
